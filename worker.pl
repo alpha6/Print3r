@@ -1,42 +1,31 @@
 #!/usr/bin/env perl
 # For Linux
-use strict;
+use lib 'lib';
+
 use v5.20;
 use warnings;
 use Time::HiRes qw/sleep/;
 use Device::SerialPort;
 use IO::Socket::INET;
+use JSON;
+
+use print3r::worker;
 
 use Data::Dumper;
 
 my $file = shift;
 
-# auto-flush on socket
-$| = 1;
 
-# create a connecting socket
-my $socket = new IO::Socket::INET(
-    PeerHost => '127.0.0.1',
-    PeerPort => '44244',
-    Proto    => 'tcp',
-);
-die "cannot connect to the server $!\n" unless $socket;
-print "connected to the server\n";
+my $worker = print3r::worker->new();
+$worker->connect('127.0.0.1', 44244);
 
 # data to send to a server
-my $req  = 'hello world';
-my $size = $socket->send($req);
-print "sent data of length $size\n";
+$worker->status("worker started");
 
-# notify server that request has been sent
-shutdown( $socket, 1 );
-
-# receive a response of up to 1024 characters from server
 my $response = "";
-$socket->recv( $response, 1024 );
+$response = $worker->read();
 print "received response: $response\n";
 
-$socket->close();
 
 say "Connecting..";
 my $port = Device::SerialPort->new("/dev/ttyUSB0");
@@ -108,4 +97,5 @@ while (1) {
 }
 
 $port->close || warn "close failed";
+$worker->close();
 close($fh);

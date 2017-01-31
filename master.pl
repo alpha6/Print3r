@@ -6,11 +6,15 @@ use AnyEvent;
 use AnyEvent::Handle;
 use AnyEvent::Socket;
 use IPC::Open3;
+use JSON;
 
 my $cv = AE::cv;
 
 my $host = '127.0.0.1';
 my $port = 44244;
+
+my $printer_port = '/dev/ttyUSB0';
+my $port_speed = 115200;
 
 my $alive_timer = AnyEvent->timer(
     after    => 60,
@@ -35,6 +39,10 @@ tcp_server(
             on_read => sub {
                 my ($self) = @_;
                 print "Received: " . $self->rbuf . "\n";
+                $self->push_write(encode_json({
+                        printer_port => $printer_port,
+                        port_speed => $port_speed,
+                        }));
             },
             on_eof => sub {
                 my ($hdl) = @_;
@@ -42,7 +50,7 @@ tcp_server(
             },
             on_error => sub {
                 my $hdl = shift;
-                print "Lost connecton to clien.";
+                print "Lost connecton to client.";
                 $hdl->destroy();
             },
         );

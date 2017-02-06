@@ -80,7 +80,7 @@ while (1) {
         $port->write("$next_command\n");
         $ready_flag = 0;
     }
-
+ 
     # Poll to see if any data is coming in
     if ( my $char = $port->lookfor() ) {
         $char =~ s/\r//;

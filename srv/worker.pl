@@ -50,18 +50,18 @@ sub get_line {
         return undef;
     }
 
-    chomp($line);
-    if ( length($line) == 0 ) {
-        $line = "";
-    }
-    if ( index( $line, ';' ) == 0 ) {
+    $line =~ s/\r|\n//g;
+
+
+    if (!($line =~ m/^[G|M|T].*/)) {
         $line = "";
     }
 
-    # printf("line [%s]\n", $line);
+    printf("line [%s]\n", $line);
     return $line;
 }
 
+say "send initial M150";
 $port->write("M105\n")
   ; #Empty command for start communication with printer. That prevent need to restart printer before communication
 
@@ -76,7 +76,7 @@ while (1) {
             next;
         }
 
-        print "> $next_command\n";
+        say "> $next_command";
         $port->write("$next_command\n");
         $ready_flag = 0;
     }
@@ -84,8 +84,9 @@ while (1) {
     # Poll to see if any data is coming in
     if ( my $char = $port->lookfor() ) {
         $char =~ s/\r//;
-        print "< $char\n";
-        if ( $char =~ m/^(ok|start)$/ ) {
+        say "< $char";
+        if ( $char =~ /^(ok|start)/ ) {
+            say "ready";
             $ready_flag = 1;
         }
         else {

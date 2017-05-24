@@ -8,6 +8,8 @@ use AnyEvent::Socket;
 use IPC::Open3;
 use JSON;
 
+use Data::Dumper;
+
 my $cv = AE::cv;
 
 my $host = '127.0.0.1';
@@ -16,21 +18,28 @@ my $port = 44244;
 my $printer_port = '/dev/ttyUSB0';
 my $port_speed = 115200;
 
-my $alive_timer = AnyEvent->timer(
-    after    => 60,
-    interval => 60,
+my %connections;
+
+
+my $workers_timer = AnyEvent->timer(
+    after    => 10,
+    interval => 10,
     cb       => sub {
-        say "Server alive";
+        say "Sending commands";
+        for my $key (keys(%connections)) {
+            
+            my $handler = $connections{$key};
+            $handler->push_write(sprintf("HELLO %s\n",time()));
+        }
     }
 );
 
-my %connections;
 tcp_server(
     $host, $port,
     sub {
-        my ($fh) = @_;
+        my ($fh, $clienthost, $clientport) = @_;
 
-        print "Connected...\n";
+        print "Connected... [$clienthost][$clientport]\n";
 
         my $handle;
         $handle = AnyEvent::Handle->new(
@@ -38,11 +47,9 @@ tcp_server(
             poll    => 'r',
             on_read => sub {
                 my ($self) = @_;
-                print "Received: " . $self->rbuf . "\n";
-                $self->push_write(encode_json({
-                        printer_port => $printer_port,
-                        port_speed => $port_speed,
-                        }));
+                my $data = $self->rbuf;
+                chomp($data);
+                say "Received: " . $data . "\n";
             },
             on_eof => sub {
                 my ($hdl) = @_;
@@ -50,12 +57,13 @@ tcp_server(
             },
             on_error => sub {
                 my $hdl = shift;
-                print "Lost connecton to client.";
+                print "Lost connecton to client.\n";
                 $hdl->destroy();
             },
         );
         $connections{$handle} = $handle;    # keep it alive.
 
+        $handle->push_write("OLOLO\n");
         return;
     }
 );

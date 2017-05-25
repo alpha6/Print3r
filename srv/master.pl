@@ -29,7 +29,7 @@ my $workers_timer = AnyEvent->timer(
         for my $key (keys(%connections)) {
             
             my $handler = $connections{$key};
-            $handler->push_write(sprintf("HELLO %s\n",time()));
+            $handler->push_write(json => {command => "HEARTBEAT"});
         }
     }
 );
@@ -47,12 +47,16 @@ tcp_server(
             poll    => 'r',
             on_read => sub {
                 my ($self) = @_;
-                my $data = $self->rbuf;
-                chomp($data);
-                say "Received: " . $data . "\n";
+                
+                $self->push_read(json => sub {
+                    my ($handle, $data) = @_;
+                    say Dumper($data);
+                });    
+                            
             },
             on_eof => sub {
                 my ($hdl) = @_;
+                say "Client disconnected";
                 $hdl->destroy();
             },
             on_error => sub {
@@ -63,7 +67,7 @@ tcp_server(
         );
         $connections{$handle} = $handle;    # keep it alive.
 
-        $handle->push_write("OLOLO\n");
+        $handle->push_write(json => {command => "CONNECT"});
         return;
     }
 );

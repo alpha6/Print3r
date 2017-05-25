@@ -5,6 +5,8 @@ use v5.20;
 use AnyEvent;
 use AnyEvent::Handle;
 use AnyEvent::Socket;
+
+use Data::Dumper;
  
 my $cv = AE::cv;
 
@@ -45,9 +47,11 @@ tcp_connect ("127.0.0.1", 44244,
             fh      => $fh,
             poll    => 'r',
             on_read => sub {
-                my ($self) = @_;
-                say "Received: " . $self->rbuf . "\n";
-				$handle->push_write ("ok\r\n");                
+                my ($self) = @_;                
+                $handle->push_read( json => sub {
+                    my ($handle, $data) = @_;
+                    say Dumper($data);
+                });
             },
             on_eof => sub {
                 my ($hdl) = @_;
@@ -61,7 +65,7 @@ tcp_connect ("127.0.0.1", 44244,
             },
         );
 
-      $handle->push_write ("HELLO\n");
+      $handle->push_write (json => { command => "HELLO"});
       set_heartbeat();
 });
 

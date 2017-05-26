@@ -21,15 +21,32 @@ my $port_speed = 115200;
 my %connections;
 
 
+sub process_command {
+    my $handle = shift;
+    my $data = shift;
+
+    if ($data->{'command'} eq 'status') {
+        say sprintf("Printer temp: %.1f@%.1f", $data->{'E0'}, $data->{'B'});
+    } elsif ($data->{'command'} eq 'connect') {
+        say $data->{'message'};
+        $handle->push_write(json => {command => 'print_file', params => {filename => 'test.gcode'}});
+    }
+    else {
+        say Dumper($data);
+    }
+
+}
+
+
 my $workers_timer = AnyEvent->timer(
-    after    => 10,
-    interval => 10,
+    after    => 30,
+    interval => 30,
     cb       => sub {
         say "Sending commands";
         for my $key (keys(%connections)) {
             
             my $handler = $connections{$key};
-            $handler->push_write(json => {command => "HEARTBEAT"});
+            $handler->push_write(json => {command => "status"});
         }
     }
 );
@@ -50,7 +67,7 @@ tcp_server(
                 
                 $self->push_read(json => sub {
                     my ($handle, $data) = @_;
-                    say Dumper($data);
+                    process_command($handle, $data);
                 });    
                             
             },
@@ -67,7 +84,7 @@ tcp_server(
         );
         $connections{$handle} = $handle;    # keep it alive.
 
-        $handle->push_write(json => {command => "CONNECT"});
+        $handle->push_write(json => {command => "connect", params => {port => "/dev/ttyUSB0", speed => 115200 }});
         return;
     }
 );

@@ -121,13 +121,13 @@ sub connect_to_printer {
 	                process_command($parsed_reply);
 	                })
 	        });
-    	$handle->push_write(json => {command => "connect", status => "ready", message => "Connected to [".$printer_port."]", port => $printer_port, speed => $port_speed});
+    	$handle->push_write(json => {command => "connect", status => "ready", message => "Connected to [".$printer_port."]", pid => $$, port => $printer_port, speed => $port_speed});
+    	
 	    #Start communication with the printer
 	    $port_handle->write("M105\n");
 }
 
 my $commands = print3r::Commands->new({
-	hello => sub { say "YOYOYO! HELLO!"},
 	print_file => sub {
 		my $self = shift;
 		my $params = shift;
@@ -142,6 +142,11 @@ my $commands = print3r::Commands->new({
 		$log->debug("G-Code: ".Dumper($params));
 		$port_handle->write(sprintf("%s\n", $params->{'value'}));
 	},
+	disconnect => sub {
+		$port_handle->close();
+		$handle->destroy();
+		exit 0;
+		},
 });
 
 

@@ -53,12 +53,15 @@ sub process_command {
         if ($control_handle) {
             $control_handle->push_write(json => {reply => sprintf("Worker started with pid [%s]", $pid)});    
         }
-        
-
     } elsif ($data->{'command'} eq 'connect') { #Worker connection status message
-        #Set flag that worker connected
+        
         $log->info(sprintf("Worker [%s] is connected to [%s] at speed [%s]", $data->{'pid'}, $data->{'port'}, $data->{'speed'}));
-        $log->debug($data->{'message'});
+
+        #Change handler key name to port name
+        $connections{$data->{'port'}} = $handle;
+        delete($connections{$handle});
+
+        #Set flag that worker connected
         $workers{$data->{'pid'}}{'is_connected'} = 1;
         if (defined $control_handle) {
             $control_handle->push_write(json => {reply => sprintf("Worker [%s] is connected to [%s] at speed [%s]", $data->{'pid'}, $data->{'port'}, $data->{'speed'})});    
@@ -66,7 +69,7 @@ sub process_command {
         # $handle->push_write(json => {command => 'print_file', params => {filename => 'test.gcode'}});
     } elsif ($data->{'command'} eq 'master_status') {
         
-        $control_handle->push_write(json => { handlers => %workers});
+        $control_handle->push_write(json => { handlers => [keys %connections]});
     } elsif ($data->{'command'} eq 'send') { #Send command to printer
 
         if (scalar(keys(%connections)) == 1) {
@@ -132,7 +135,6 @@ tcp_server(
         );
         $connections{$handle} = $handle;    # keep it alive.
 
-        # $handle->push_write(json => {command => "connect", params => {port => "/dev/ttyUSB0", speed => 115200 }});
         return;
     }
 );

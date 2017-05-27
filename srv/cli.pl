@@ -45,7 +45,7 @@ sub parse_input {
 tcp_connect ($server_addr, $server_port,
    sub {
       my ($fh) = @_
-         or die "unable to connect: $!";
+         or die "Unable to connect: $!";
 
 	  
         $handle = AnyEvent::Handle->new(

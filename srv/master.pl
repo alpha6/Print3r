@@ -74,7 +74,6 @@ sub process_command {
 
         if (scalar(keys(%connections)) == 1) {
             my ($h_name) = keys %connections;
-            # say Dumper(\%connections);
             my $handler = %connections{$h_name};
             $handler->push_write(json => { command => 'send', params => {value => $data->{'value'}}});
         } else {
@@ -83,7 +82,7 @@ sub process_command {
         
     } 
     else {
-        $log->warn(Dumper($data));
+        $log->error("Unknown command:".Dumper($data));
     }
 
 }

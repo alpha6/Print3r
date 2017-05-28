@@ -12,7 +12,11 @@ sub startup {
   my $r = $self->routes;
 
   # Normal route to controller
-  $r->get('/')->to('example#welcome');
+  $r->get('/')->to('ui#main');
+
+  # EventSource for log messages
+  $r->get('/events')->to('backend#events');
+  
 }
 
 1;

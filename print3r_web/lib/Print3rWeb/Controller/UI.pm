@@ -5,7 +5,13 @@ sub main {
 	my $self = shift;
 
   	# Render template "example/welcome.html.ep" with message
-  	$self->render(msg => 'Welcome to the Mojolicious real-time web framework!');
+  	$self->render(msg => 'Index');
+}
+
+sub settings {
+	my $self = shift;
+
+	$self->render(msg => "Settings page");
 }
 
 1;

@@ -13,6 +13,7 @@ sub startup {
 
   # Normal route to controller
   $r->get('/')->to('ui#main');
+  $r->get('/settings')->to('ui#settings');
 
   # EventSource for log messages
   $r->get('/events')->to('backend#events');

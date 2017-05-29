@@ -81,8 +81,15 @@ sub process_command {
 	}
 	if ($command->{'type'} eq 'start_printing') {
 		if (defined($printing_file)) {
-			my $next_command = get_line();
-        	$port_handle->write("$next_command\n");	
+			my $next_command;
+			eval {
+				$next_command = get_line();
+			};
+			if ($@) {
+				$handle->push_write(json => { command => "error", message => "Printing error: $@"});	
+			} else {
+        		$port_handle->write("$next_command\n");	
+			}
 		} else {
 			$handle->push_write(json => { command => "error", message => "No file to print is available"});
 		}
@@ -128,11 +135,11 @@ sub connect_to_printer {
 }
 
 my $commands = print3r::Commands->new({
-	print_file => sub {
+	print => sub {
 		my $self = shift;
 		my $params = shift;
-		$log->debug("print file: ".Dumper($params));
-		open $printing_file, '<', $params->{'filename'} or die $!;
+		$log->debug("printing file: ".Dumper($params));
+		open ($printing_file, '<', $params->{'file'}) or die $!;
 		process_command({type => "start_printing"});
 		},
 	send => sub {

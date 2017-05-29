@@ -80,7 +80,11 @@ sub process_command {
             $control_handle->push_write(json => { command => 'error', message => 'Invalid count of connections'});
         }
         
-    } 
+    } elsif ($data->{'command'} eq 'print') {
+        my ($h_name) = keys %connections;
+        my $handler = %connections{$h_name};
+        $handler->push_write(json => { command => 'print', params => {file => $data->{'file'}}});
+    }
     else {
         $log->error("Unknown command:".Dumper($data));
     }

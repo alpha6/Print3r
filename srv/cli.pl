@@ -23,10 +23,6 @@ my $cmd = "";
 my @opts = qw/port=s speed=i file=s
 /;
 
-GetOptions (
- 	"speed=i" => \$speed,    # numeric
-    "port=s"  => \$port);   # flag
-
 sub parse_input {
 	my $input_line = shift;
 	chomp $input_line;

@@ -258,7 +258,6 @@ sub process_command {
     elsif ( $data->{'command'} eq 'send' ) {
 
         # Send command to printer
-
         if ( scalar( keys(%connections) ) == 1 ) {
             my ($h_name) = keys %connections;
             my $handler = $connections{$h_name}{'handle'};
@@ -295,6 +294,24 @@ sub process_command {
         my $handler = $connections{$h_name}{'handle'};
         $handler->push_write( json =>
               { command => 'print', params => { file => $data->{'file'} } } );
+    }
+    elsif ( $data->{'command'} eq 'pause' ) {
+
+        # Pause printing
+
+        my ($h_name) = keys %connections;
+        my $handler = $connections{$h_name}{'handle'};
+        $handler->push_write( json =>
+              { command => 'pause', params => {} } );
+    }
+    elsif ( $data->{'command'} eq 'resume' ) {
+
+        # Resume printing
+
+        my ($h_name) = keys %connections;
+        my $handler = $connections{$h_name}{'handle'};
+        $handler->push_write( json =>
+              { command => 'resume', params => {} } );
     }
     elsif ( $data->{'command'} eq 'disconnect' ) {
 

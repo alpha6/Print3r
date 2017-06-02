@@ -92,7 +92,7 @@ sub parse_input {
     chomp $input_line;
 
     my ( $cmd, @args ) = split /\s+/, $input_line;
-    my $args = join ' ', @args;
+    my $args = join q{ }, @args;
 
     my $mopts = {};
     GetOptionsFromString( $args, $mopts, @opts );

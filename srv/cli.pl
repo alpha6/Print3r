@@ -91,6 +91,7 @@ sub parse_input {
     my $input_line = shift;
     chomp $input_line;
 
+    # Cut the first element of the string and save it as command. Another part of the string will be parsed as commad arguments
     my ( $cmd, @args ) = split /\s+/, $input_line;
     my $args = join q{ }, @args;
 

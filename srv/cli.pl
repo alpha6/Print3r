@@ -66,19 +66,22 @@ tcp_connect(
 
 # now initialise readline
 $rl = AnyEvent::ReadLine::Gnu->new(
-  prompt  => "cmd> ",
-  on_line => sub {
-    my $line = shift;
+    prompt  => "cmd> ",
+    on_line => sub {
+        my $line = shift;
 
-    if ( $line =~ m/^[G|M|T].*/ ) {
-        $handle->push_write( json => { command => 'send', value => $line } );
+        if ( $line =~ m/^[G|M|T].*/ ) {
+            $handle->push_write(
+                json => { command => 'send', value => $line } );
+        }
+        else {
+            my $input = parse_input($line);
+            $handle->push_write( json =>
+                  { command => $input->{'command'}, %{ $input->{'options'} } }
+            );
+        }
     }
-    else {
-        my $input = parse_input($line);
-        $handle->push_write( json =>
-              { command => $input->{'command'}, %{ $input->{'options'} } } );
-    }
-  });
+);
 
 $cv->recv;
 

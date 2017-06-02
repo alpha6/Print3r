@@ -27,10 +27,9 @@ my $printing_file  = undef;
 my $port_handle    = undef;
 my %timers;
 
-
 my $in_command_flag  = 0;
 my $is_printer_ready = 1;
-my $is_print_paused = 0;
+my $is_print_paused  = 0;
 
 my $printer_port = '/dev/ttyUSB0';
 my $port_speed   = 115200;
@@ -44,7 +43,7 @@ my $worker = Print3r::Worker->new();
 
 sub get_line {
     state $line_number = 0;
-    while (my $line = <$printing_file>) {
+    while ( my $line = <$printing_file> ) {
         if ( $line =~ m/^[G|M|T].*/ ) {
             chomp $line;
             $log->debug( sprintf( "line [%s]\n", $line ) );
@@ -52,7 +51,7 @@ sub get_line {
             return $line;
         }
     }
-    
+
     return $line_number;
 }
 
@@ -78,7 +77,7 @@ sub process_command {
         $is_printer_ready = $command->{'printer_ready'};
     }
 
-    # The temperature is processed separately because it should be shown while printing.
+# The temperature is processed separately because it should be shown while printing.
     if ( $command->{'type'} eq 'temperature' ) {
         $handle->push_write(
             json => {
@@ -105,9 +104,9 @@ sub process_command {
             }
         };
         if ($@) {
-                $handle->push_write( json =>
-                      { command => "error", message => "Printing error: $@" } );
-            }
+            $handle->push_write( json =>
+                  { command => "error", message => "Printing error: $@" } );
+        }
 
     }
     elsif ( !$is_print_paused && $command->{'printer_ready'} ) {
@@ -115,54 +114,68 @@ sub process_command {
             my $next_command = get_line();
 
             #The function get_line return number only if print ended
-            if ($next_command !~ /^\d+$/) { 
+            if ( $next_command !~ /^\d+$/ ) {
                 $port_handle->write("$next_command\n");
-            } else {
-                $handle->push_write( json => {
-                    command => 'message',
-                    line => sprintf('Printing has ended. Printed [%d] lines.', $next_command),
-                });
+            }
+            else {
+                $handle->push_write(
+                    json => {
+                        command => 'message',
+                        line =>
+                          sprintf( 'Printing has ended. Printed [%d] lines.',
+                            $next_command ),
+                    }
+                );
                 undef $printing_file;
             }
         }
-    } 
-    elsif ($command->{'type'} eq 'error') {
-        $handle->push_write( json => {
-            command => 'error',
-            line => sprintf('Print emergency stopped!. Priner message: %d', $command->{'line'}),
-        });
     }
-    elsif ($command->{'type'} eq 'pause') {
+    elsif ( $command->{'type'} eq 'error' ) {
+        $handle->push_write(
+            json => {
+                command => 'error',
+                line => sprintf( 'Print emergency stopped!. Priner message: %d',
+                    $command->{'line'} ),
+            }
+        );
+    }
+    elsif ( $command->{'type'} eq 'pause' ) {
         $is_print_paused = 1;
 
         $log->info("Printing has paused.");
-        $handle->push_write( json => {
-            command => 'message',
-            line => sprintf('Printing has paused!'),
-        });
+        $handle->push_write(
+            json => {
+                command => 'message',
+                line    => sprintf('Printing has paused!'),
+            }
+        );
     }
-    elsif ($command->{'type'} eq 'resume') {
+    elsif ( $command->{'type'} eq 'resume' ) {
         $is_print_paused = 0;
 
         $log->info("Printing has resumed.");
-        $handle->push_write( json => {
-            command => 'message',
-            line => sprintf('Printing has resumed!'),
-        });
+        $handle->push_write(
+            json => {
+                command => 'message',
+                line    => sprintf('Printing has resumed!'),
+            }
+        );
 
         # Send command to resume printing
-        $port_handle->write("M105\n");    
+        $port_handle->write("M105\n");
     }
-    elsif ($command->{'type'} eq 'stop') {
+    elsif ( $command->{'type'} eq 'stop' ) {
         $log->info("Print stopped.");
 
         $is_printer_ready = 0;
         undef($printing_file);
 
-        $handle->push_write( json => {
-            command => 'message',
-            line => sprintf('Printing has stopped!'),
-        });
+        $handle->push_write(
+            json => {
+                command => 'message',
+                line    => sprintf('Printing has stopped!'),
+            }
+        );
     }
     else {
         $handle->push_write(
@@ -288,6 +301,7 @@ tcp_connect(
                 $handle->push_read(
                     json => sub {
                         my ( $handle, $data ) = @_;
+
                         # $log->debug( "Worker read:" . Dumper($data) );
                         my $name   = lc( $data->{'command'} );
                         my $params = $data->{'params'};

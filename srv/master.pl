@@ -202,11 +202,12 @@ sub process_printer_command {
         ) if ($is_cli_connected);
     }
     else {
+        $log->error(sprintf("Printer message: %s", $data->{'line'}));
         $control_handle->push_write(
             json => {
                 reply => $data->{'line'}
             }
-        );
+        ) if ($is_cli_connected);
     }
 
 }

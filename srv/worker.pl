@@ -26,8 +26,11 @@ my $printer_handle = undef;
 my $printing_file  = undef;
 my $port_handle    = undef;
 my %timers;
+
+
 my $in_command_flag  = 0;
 my $is_printer_ready = 1;
+my $is_print_paused = 0;
 
 my $printer_port = '/dev/ttyUSB0';
 my $port_speed   = 115200;
@@ -70,14 +73,12 @@ sub set_heartbeat {
 sub process_command {
     my $command = shift;
 
-    # $log->debug( "Parsed command: " . Dumper($command) );
-    # $log->debug("Printer status: [$is_printer_ready]");
+    # Check that the printer is ready for new commands and set flag
     if ( exists( $command->{'printer_ready'} ) ) {
         $is_printer_ready = $command->{'printer_ready'};
-
-        # $log->debug("Printer status: [$is_printer_ready]");
     }
 
+    # The temperature is processed separately because it should be shown while printing.
     if ( $command->{'type'} eq 'temperature' ) {
         $handle->push_write(
             json => {
@@ -109,7 +110,7 @@ sub process_command {
             }
 
     }
-    elsif ( $command->{'printer_ready'} ) {
+    elsif ( !$is_print_paused && $command->{'printer_ready'} ) {
         if ( defined($printing_file) && $is_printer_ready ) {
             my $next_command = get_line();
 
@@ -119,11 +120,49 @@ sub process_command {
             } else {
                 $handle->push_write( json => {
                     command => 'message',
-                    line => sprintf('Print ended. Printed [%d] lines.', $next_command),
+                    line => sprintf('Printing has ended. Printed [%d] lines.', $next_command),
                 });
                 undef $printing_file;
             }
         }
+    } 
+    elsif ($command->{'type'} eq 'error') {
+        $handle->push_write( json => {
+            command => 'error',
+            line => sprintf('Print emergency stopped!. Priner message: %d', $command->{'line'}),
+        });
+    }
+    elsif ($command->{'type'} eq 'pause') {
+        $is_print_paused = 1;
+
+        $log->info("Printing has paused.");
+        $handle->push_write( json => {
+            command => 'message',
+            line => sprintf('Printing has paused!'),
+        });
+    }
+    elsif ($command->{'type'} eq 'resume') {
+        $is_print_paused = 0;
+
+        $log->info("Printing has resumed.");
+        $handle->push_write( json => {
+            command => 'message',
+            line => sprintf('Printing has resumed!'),
+        });
+
+        # Send command to resume printing
+        $port_handle->write("M105\n");    
+    }
+    elsif ($command->{'type'} eq 'stop') {
+        $log->info("Print stopped.");
+
+        $is_printer_ready = 0;
+        undef($printing_file);
+
+        $handle->push_write( json => {
+            command => 'message',
+            line => sprintf('Printing has stopped!'),
+        });
     }
     else {
         $handle->push_write(
@@ -133,6 +172,7 @@ sub process_command {
             }
         );
     }
+
     return;
 }
 
@@ -200,15 +240,17 @@ my $commands = print3r::Commands->new(
             $handle->destroy();
             exit 0;
         },
-
-        # TODO
+        pause => sub {
+            process_command( { type => 'pause' } );
+        },
+        resume => sub {
+            process_command( { type => 'resume' } );
+        },
         stop => sub {
-            my $self = shift;
             $log->info("Stopping print...");
             process_command( { type => 'stop' } );
         },
         status => sub {
-            $log->debug("Worker status");
             $port_handle->write("M105\n");
 
         }
@@ -230,6 +272,7 @@ my $test_timer = AnyEvent->timer(
     }
 );
 
+# Connect to master
 tcp_connect(
     "127.0.0.1",
     44244,
@@ -245,7 +288,7 @@ tcp_connect(
                 $handle->push_read(
                     json => sub {
                         my ( $handle, $data ) = @_;
-                        $log->debug( "Worker read:" . Dumper($data) );
+                        # $log->debug( "Worker read:" . Dumper($data) );
                         my $name   = lc( $data->{'command'} );
                         my $params = $data->{'params'};
                         $commands->$name($params);

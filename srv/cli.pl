@@ -42,7 +42,7 @@ tcp_connect(
                 my ($self) = @_;
                 $handle->push_read(
                     json => sub {
-                        my ( $handle, $data ) = @_;
+                        my ( $hdl, $data ) = @_;
                         $rl->print( sprintf( '%s\n', $data->{'reply'} ) );
                     }
                 );

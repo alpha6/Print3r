@@ -237,7 +237,7 @@ my $commands = print3r::Commands->new(
         print => sub {
             my $self   = shift;
             my $params = shift;
-            $log->info( "Start printing file: " . Dumper($params) );
+            $log->info( sprintf("Starting print. File: %s", $params->{'file'}) );
             open( $printing_file, '<', $params->{'file'} ) or die $!;
             process_command( { type => "start_printing" } );
         },

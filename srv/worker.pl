@@ -78,6 +78,17 @@ sub process_command {
         # $log->debug("Printer status: [$is_printer_ready]");
     }
 
+    if ( $command->{'type'} eq 'temperature' ) {
+        $handle->push_write(
+            json => {
+                command => 'status',
+                E0      => $command->{'E0'},
+                B       => $command->{'B'},
+                line    => $command->{'line'},
+            }
+        );
+    }
+
     if ( $command->{'type'} eq 'start_printing' ) {
         if ( defined($printing_file) ) {
             my $next_command;
@@ -107,12 +118,11 @@ sub process_command {
             $port_handle->write("$next_command\n");
         }
     }
-    elsif ( $command->{'type'} eq 'temperature' ) {
+    else {
         $handle->push_write(
             json => {
-                command => 'status',
-                E0      => $command->{'E0'},
-                B       => $command->{'B'}
+                command => 'other',
+                line => $command->{'line'},
             }
         );
     }
@@ -185,6 +195,11 @@ my $commands = print3r::Commands->new(
             my $self = shift;
             $log->info("Stopping print...");
             process_command( { type => 'stop'});
+        },
+        status => sub {
+            $log->debug("Worker status");
+            $port_handle->write("M105\n");
+
         }
     }
 );
@@ -238,8 +253,6 @@ tcp_connect(
                 $hdl->destroy();
             },
         );
-
-        $handle->push_write( json => { command => "HELLO" } );
 
         # set_heartbeat();
         connect_to_printer();

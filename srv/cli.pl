@@ -21,7 +21,7 @@ my $cv = AE::cv;
 
 my $port  = '/dev/ttyUSB0';
 my $speed = 115200;
-my $cmd   = "";
+
 my @opts  = qw/port=s speed=i file=s
   /;
 
@@ -42,7 +42,7 @@ tcp_connect(
                 $handle->push_read(
                     json => sub {
                         my ( $handle, $data ) = @_;
-                        $rl->print( Dumper($data));
+                        $rl->print( sprintf("%s\n", $data->{'reply'}));
                     }
                 );
 
@@ -54,7 +54,7 @@ tcp_connect(
                 exit 0;
             },
             on_error => sub {
-                my $hdl = shift;
+                my ($hdl, $data) = shift;
                 $rl->print( "Lost connecton to server.\n");
                 $hdl->destroy();
                 exit 1;
@@ -88,15 +88,12 @@ sub parse_input {
     my $input_line = shift;
     chomp $input_line;
 
-    # say "[$input_line]";
-
     my ( $cmd, @args ) = split /\s+/, $input_line;
     my $args = join ' ', @args;
 
     my $mopts = {};
     GetOptionsFromString( $args, $mopts, @opts );
 
-    # say Dumper($mopts);
     return { command => $cmd, options => $mopts };
 
 }

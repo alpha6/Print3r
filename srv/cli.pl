@@ -65,7 +65,7 @@ tcp_connect(
 );
 
 # now initialise readline
-$rl = new AnyEvent::ReadLine::Gnu
+$rl = AnyEvent::ReadLine::Gnu->new(
   prompt  => "cmd> ",
   on_line => sub {
     my $line = shift;
@@ -78,7 +78,7 @@ $rl = new AnyEvent::ReadLine::Gnu
         $handle->push_write( json =>
               { command => $input->{'command'}, %{ $input->{'options'} } } );
     }
-  };
+  });
 
 $cv->recv;
 

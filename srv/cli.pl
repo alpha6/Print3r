@@ -43,7 +43,7 @@ tcp_connect(
                 $handle->push_read(
                     json => sub {
                         my ( $handle, $data ) = @_;
-                        $rl->print( sprintf( "%s\n", $data->{'reply'} ) );
+                        $rl->print( sprintf( '%s\n', $data->{'reply'} ) );
                     }
                 );
 
@@ -62,13 +62,13 @@ tcp_connect(
             },
         );
 
-        $handle->push_write( json => { command => "status" } );
+        $handle->push_write( json => { command => 'status' } );
     }
 );
 
 # now initialise readline
 $rl = AnyEvent::ReadLine::Gnu->new(
-    prompt  => "cmd> ",
+    prompt  => 'cmd> ',
     on_line => sub {
         my $line = shift;
 

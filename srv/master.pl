@@ -2,6 +2,9 @@
 
 use v5.20;
 
+use strict;
+use warnings;
+
 use AnyEvent;
 use AnyEvent::Handle;
 use AnyEvent::Socket;
@@ -41,7 +44,7 @@ my $workers_timer = AnyEvent->timer(
         for my $key ( keys(%connections) ) {
 
             my $handler = $connections{$key}{'handle'};
-            $handler->push_write( json => { command => "status" } );
+            $handler->push_write( json => { command => 'status' } );
         }
     }
 );
@@ -63,21 +66,21 @@ tcp_server(
 
                 $self->push_read(
                     json => sub {
-                        my ( $handle, $data ) = @_;
-                        $log->debug( "Printer data " . Dumper($data) );
-                        process_printer_command( $handle, $data );
+                        my ( $hdl, $data ) = @_;
+                        $log->debug( 'Printer data ' . Dumper($data) );
+                        process_printer_command( $hdl, $data );
                     }
                 );
 
             },
             on_eof => sub {
                 my ($hdl) = @_;
-                say "Client disconnected";
+                say 'Client disconnected';
                 $hdl->destroy();
             },
             on_error => sub {
                 my $hdl = shift;
-                print "Lost connecton to client.\n";
+                say 'Lost connecton to client.';
                 $hdl->destroy();
             },
         );
@@ -95,8 +98,8 @@ tcp_server(
         my ( $fh, $clienthost, $clientport ) = @_;
 
         if ( defined($control_handle) ) {
-            $log->error("Only one controll process is allowed!");
-            syswrite $fh, "Only one controll process is allowed!";
+            $log->error('Only one controll process is allowed!');
+            syswrite $fh, 'Only one controll process is allowed!';
             return;
         }
 
@@ -144,7 +147,7 @@ $cv->recv;
 sub process_printer_command {
     my $handle = shift;
     my $data   = shift;
-    $log->debug( "process_command: " . Dumper($data) );
+    $log->debug( 'Process_command: ' . Dumper($data) );
 
     # If is set this flag - force send raw answer line to CLI
     if ($is_user_command) {
@@ -160,7 +163,7 @@ sub process_printer_command {
 
         $log->info(
             sprintf(
-                "Worker [%s] is connected to [%s] at speed [%s]",
+                'Worker [%s] is connected to [%s] at speed [%s]',
                 $data->{'pid'}, $data->{'port'}, $data->{'speed'}
             )
         );
@@ -180,7 +183,7 @@ sub process_printer_command {
             $control_handle->push_write(
                 json => {
                     reply => sprintf(
-                        "Worker [%s] is connected to [%s] at speed [%s]",
+                        'Worker [%s] is connected to [%s] at speed [%s]',
                         $data->{'pid'}, $data->{'port'}, $data->{'speed'}
                     )
                 }
@@ -189,10 +192,10 @@ sub process_printer_command {
     }
     elsif ( $data->{'command'} eq 'status' ) {
         $log->info(
-            sprintf( "Printer temp: %.1f@%.1f", $data->{'E0'}, $data->{'B'} ) );
+            sprintf( 'Printer temp: %.1f@%.1f', $data->{'E0'}, $data->{'B'} ) );
     }
     elsif ( $data->{'command'} eq 'message' ) {
-        $log->info( sprintf( "Printer message: %s", $data->{'message'} ) );
+        $log->info( sprintf( 'Printer message: %s', $data->{'message'} ) );
 
         $control_handle->push_write(
             json => {
@@ -201,7 +204,7 @@ sub process_printer_command {
         ) if ($is_cli_connected);
     }
     else {
-        $log->error( sprintf( "Printer message: %s", $data->{'line'} ) );
+        $log->error( sprintf( 'Printer message: %s', $data->{'line'} ) );
         $control_handle->push_write(
             json => {
                 reply => $data->{'line'}
@@ -214,7 +217,7 @@ sub process_printer_command {
 sub process_command {
     my $handle = shift;
     my $data   = shift;
-    $log->debug( "process_command: " . Dumper($data) );
+    $log->debug( 'process_command: ' . Dumper($data) );
 
     if ( $data->{'command'} eq 'connect' ) {
 
@@ -235,7 +238,7 @@ sub process_command {
         $workers{$pid} = { chld_in => $chld_in, chld_out => $chld_out };
         if ($is_cli_connected) {
             $control_handle->push_write( json =>
-                  { reply => sprintf( "Worker started with pid [%s]", $pid ) }
+                  { reply => sprintf( 'Worker started with pid [%s]', $pid ) }
             );
         }
     }
@@ -263,8 +266,6 @@ sub process_command {
             my $handler = $connections{$h_name}{'handle'};
 
             $is_user_command = 1; #Set flag to return raw printer answer to user
-
-            $log->debug( sprintf( "User command set [%d]", $is_user_command ) );
 
             $handler->push_write(
                 json => {
@@ -333,10 +334,10 @@ sub process_command {
     }
     else {
         #Call if command not set
-        $log->error( "Unknown command:" . Dumper($data) );
+        $log->error( 'Unknown command:' . Dumper($data) );
         $control_handle->push_write(
             json => {
-                reply => sprintf( "Unknown command [%s]", $data->{'command'} )
+                reply => sprintf( 'Unknown command [%s]', $data->{'command'} )
             }
         );
     }

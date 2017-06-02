@@ -34,11 +34,8 @@ sub process_command {
     my $data   = shift;
     $log->debug( "process_command: " . Dumper($data) );
 
-    if ( $data->{'command'} eq 'status' ) {
-        $log->info(
-            sprintf( "Printer temp: %.1f@%.1f", $data->{'E0'}, $data->{'B'} ) );
-    }
-    elsif ( $data->{'command'} eq 'spawn_worker' ) {
+    
+    if ( $data->{'command'} eq 'connect' ) {
 
         #Spawn new worker
         my ( $chld_out, $chld_in );
@@ -61,36 +58,7 @@ sub process_command {
             );
         }
     }
-    elsif ( $data->{'command'} eq 'connect' )
-    {    #Worker connection status message
-
-        $log->info(
-            sprintf(
-                "Worker [%s] is connected to [%s] at speed [%s]",
-                $data->{'pid'}, $data->{'port'}, $data->{'speed'}
-            )
-        );
-
-        #Change handler key name to port name
-        $connections{ $data->{'port'} } = $handle;
-        delete( $connections{$handle} );
-
-        #Set flag that worker connected
-        $workers{ $data->{'pid'} }{'is_connected'} = 1;
-        if ( defined $control_handle ) {
-            $control_handle->push_write(
-                json => {
-                    reply => sprintf(
-                        "Worker [%s] is connected to [%s] at speed [%s]",
-                        $data->{'pid'}, $data->{'port'}, $data->{'speed'}
-                    )
-                }
-            );
-        }
-
-# $handle->push_write(json => {command => 'print_file', params => {filename => 'test.gcode'}});
-    }
-    elsif ( $data->{'command'} eq 'master_status' ) {
+    elsif ( $data->{'command'} eq 'status' ) {
 
         $control_handle->push_write(
             json => { handlers => [ keys %connections ] } );
@@ -122,6 +90,62 @@ sub process_command {
         my $handler = %connections{$h_name};
         $handler->push_write( json =>
               { command => 'print', params => { file => $data->{'file'} } } );
+    }
+    elsif ( $data->{'command'} eq 'disconnect' ) { #Drop print and stop worker
+        my ($h_name) = keys %connections;
+        my $handler = %connections{$h_name};
+        $handler->push_write( json =>
+              { command => 'disconnect', params => { } } );
+    }
+    elsif ( $data->{'command'} eq 'stop' ) { # Stop print
+        my ($h_name) = keys %connections;
+        my $handler = %connections{$h_name};
+        $handler->push_write( json =>
+              { command => 'stop', params => { } } );
+    }
+    else {
+        $log->error( "Unknown command:" . Dumper($data) );
+    }
+
+}
+
+sub process_printer_command {
+    my $handle = shift;
+    my $data   = shift;
+    $log->debug( "process_command: " . Dumper($data) );
+
+    if ( $data->{'command'} eq 'connect' )
+    {    #Worker connection status message
+
+        $log->info(
+            sprintf(
+                "Worker [%s] is connected to [%s] at speed [%s]",
+                $data->{'pid'}, $data->{'port'}, $data->{'speed'}
+            )
+        );
+
+        #Change handler key name to port name
+        $connections{ $data->{'port'} } = $handle;
+        delete( $connections{$handle} );
+
+        #Set flag that worker connected
+        $workers{ $data->{'pid'} }{'is_connected'} = 1;
+        if ( defined $control_handle ) {
+            $control_handle->push_write(
+                json => {
+                    reply => sprintf(
+                        "Worker [%s] is connected to [%s] at speed [%s]",
+                        $data->{'pid'}, $data->{'port'}, $data->{'speed'}
+                    )
+                }
+            );
+        }
+
+# $handle->push_write(json => {command => 'print_file', params => {filename => 'test.gcode'}});
+    }
+    elsif ( $data->{'command'} eq 'status' ) {
+        $log->info(
+            sprintf( "Printer temp: %.1f@%.1f", $data->{'E0'}, $data->{'B'} ) );
     }
     else {
         $log->error( "Unknown command:" . Dumper($data) );
@@ -159,7 +183,8 @@ tcp_server(
                 $self->push_read(
                     json => sub {
                         my ( $handle, $data ) = @_;
-                        process_command( $handle, $data );
+                        $log->debug("Printer data ".Dumper($data));
+                        process_printer_command( $handle, $data );
                     }
                 );
 

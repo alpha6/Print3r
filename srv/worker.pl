@@ -71,12 +71,13 @@ sub set_heartbeat {
 
 sub process_command {
     my $command = shift;
-    $log->debug( "Parsed command: " . Dumper($command) );
-    $log->debug("Printer status: [$is_printer_ready]");
+    # $log->debug( "Parsed command: " . Dumper($command) );
+    # $log->debug("Printer status: [$is_printer_ready]");
     if ( exists( $command->{'printer_ready'} ) ) {
         $is_printer_ready = $command->{'printer_ready'};
-        $log->debug("Printer status: [$is_printer_ready]");
+        # $log->debug("Printer status: [$is_printer_ready]");
     }
+
     if ( $command->{'type'} eq 'start_printing' ) {
         if ( defined($printing_file) ) {
             my $next_command;
@@ -100,7 +101,7 @@ sub process_command {
 
     }
     elsif ( $command->{'printer_ready'} ) {
-        $log->debug("Printer ready confirmed");
+        # $log->debug("Printer ready confirmed");
         if ( defined($printing_file) && $is_printer_ready ) {
             my $next_command = get_line();
             $port_handle->write("$next_command\n");
@@ -163,22 +164,28 @@ my $commands = print3r::Commands->new(
         print => sub {
             my $self   = shift;
             my $params = shift;
-            $log->debug( "printing file: " . Dumper($params) );
+            $log->info( "Start printing file: " . Dumper($params) );
             open( $printing_file, '<', $params->{'file'} ) or die $!;
             process_command( { type => "start_printing" } );
         },
         send => sub {
-            $log->debug( "send:" . Dumper( \@_ ) );
             my $self   = shift;
             my $params = shift;
-            $log->debug( "G-Code: " . Dumper($params) );
+            $log->info( "External G-Code: " . Dumper($params) );
             $port_handle->write( sprintf( "%s\n", $params->{'value'} ) );
         },
         disconnect => sub {
+            $log->info("Disconnecting...");
             $port_handle->close();
             $handle->destroy();
             exit 0;
         },
+        # TODO
+        stop => sub {
+            my $self = shift;
+            $log->info("Stopping print...");
+            process_command( { type => 'stop'});
+        }
     }
 );
 

@@ -40,21 +40,17 @@ GetOptions(
 my $worker = Print3r::Worker->new();
 
 sub get_line {
-    while (1) {
-        my $line = <$printing_file>;
-
-        unless ( defined($line) ) {
-            undef $printing_file;
-            die "No strings left in file";
-        }
-
+    state $line_number = 0;
+    while (my $line = <$printing_file>) {
         if ( $line =~ m/^[G|M|T].*/ ) {
             chomp $line;
             $log->debug( sprintf( "line [%s]\n", $line ) );
+            $line_number++;
             return $line;
         }
     }
-
+    
+    return $line_number;
 }
 
 sub set_heartbeat {
@@ -67,6 +63,8 @@ sub set_heartbeat {
         }
     );
     $timers{'heartbeat_timer'} = $heartbeat_timer;
+
+    return;
 }
 
 sub process_command {
@@ -92,33 +90,39 @@ sub process_command {
     }
 
     if ( $command->{'type'} eq 'start_printing' ) {
-        if ( defined($printing_file) ) {
-            my $next_command;
-            eval { $next_command = get_line(); };
-            if ($@) {
+        eval {
+            if ( my $next_command = get_line() ) {
+                $port_handle->write("$next_command\n");
+            }
+            else {
+                $handle->push_write(
+                    json => {
+                        command => "error",
+                        message => "No file to print is available"
+                    }
+                );
+            }
+        };
+        if ($@) {
                 $handle->push_write( json =>
                       { command => "error", message => "Printing error: $@" } );
             }
-            else {
-                $port_handle->write("$next_command\n");
-            }
-        }
-        else {
-            $handle->push_write(
-                json => {
-                    command => "error",
-                    message => "No file to print is available"
-                }
-            );
-        }
 
     }
     elsif ( $command->{'printer_ready'} ) {
-
-        # $log->debug("Printer ready confirmed");
         if ( defined($printing_file) && $is_printer_ready ) {
             my $next_command = get_line();
-            $port_handle->write("$next_command\n");
+
+            #The function get_line return number only if print ended
+            if ($next_command !~ /^\d+$/) { 
+                $port_handle->write("$next_command\n");
+            } else {
+                $handle->push_write( json => {
+                    command => 'message',
+                    line => sprintf('Print ended. Printed [%d] lines.', $next_command),
+                });
+                undef $printing_file;
+            }
         }
     }
     else {
@@ -129,6 +133,7 @@ sub process_command {
             }
         );
     }
+    return;
 }
 
 sub connect_to_printer {
@@ -170,6 +175,8 @@ sub connect_to_printer {
 
     #Start communication with the printer
     $port_handle->write("M105\n");
+
+    return;
 }
 
 my $commands = print3r::Commands->new(

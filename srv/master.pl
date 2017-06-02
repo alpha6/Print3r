@@ -191,6 +191,16 @@ sub process_printer_command {
         $log->info(
             sprintf( "Printer temp: %.1f@%.1f", $data->{'E0'}, $data->{'B'} ) );
     }
+    elsif ( $data->{'command'} eq 'message' ) {
+        $log->info(
+            sprintf( "Printer message: %s", $data->{'message'}) );
+
+        $control_handle->push_write(
+            json => {
+                reply => $data->{'line'}
+            }
+        ) if ($is_cli_connected);
+    }
     else {
         $control_handle->push_write(
             json => {

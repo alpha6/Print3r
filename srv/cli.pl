@@ -1,6 +1,8 @@
 #!/usr/bin/env perl
 
 use v5.20;
+use strict;
+use warnings;
 
 use AnyEvent;
 use AnyEvent::Handle;
@@ -19,7 +21,7 @@ my $server_port = 44243;
 
 my $cv = AE::cv;
 
-my $port  = '/dev/ttyUSB0';
+my $port  = '/dev/ttyUSB0'; #default printer port
 my $speed = 115200;
 
 my @opts = qw/port=s speed=i file=s

@@ -71,10 +71,12 @@ sub set_heartbeat {
 
 sub process_command {
     my $command = shift;
+
     # $log->debug( "Parsed command: " . Dumper($command) );
     # $log->debug("Printer status: [$is_printer_ready]");
     if ( exists( $command->{'printer_ready'} ) ) {
         $is_printer_ready = $command->{'printer_ready'};
+
         # $log->debug("Printer status: [$is_printer_ready]");
     }
 
@@ -112,6 +114,7 @@ sub process_command {
 
     }
     elsif ( $command->{'printer_ready'} ) {
+
         # $log->debug("Printer ready confirmed");
         if ( defined($printing_file) && $is_printer_ready ) {
             my $next_command = get_line();
@@ -122,7 +125,7 @@ sub process_command {
         $handle->push_write(
             json => {
                 command => 'other',
-                line => $command->{'line'},
+                line    => $command->{'line'},
             }
         );
     }
@@ -190,11 +193,12 @@ my $commands = print3r::Commands->new(
             $handle->destroy();
             exit 0;
         },
+
         # TODO
         stop => sub {
             my $self = shift;
             $log->info("Stopping print...");
-            process_command( { type => 'stop'});
+            process_command( { type => 'stop' } );
         },
         status => sub {
             $log->debug("Worker status");

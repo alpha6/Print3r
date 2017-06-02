@@ -25,7 +25,7 @@ my %workers;
 my $control_handle = undef;
 
 my $is_cli_connected = 0;
-my $is_user_command = 0;
+my $is_user_command  = 0;
 
 Log::Log4perl::init('log4perl.conf');
 my $log = Log::Log4perl->get_logger('default');
@@ -36,6 +36,7 @@ my $workers_timer = AnyEvent->timer(
     after    => 30,
     interval => 30,
     cb       => sub {
+
         # say "Sending commands";
         for my $key ( keys(%connections) ) {
 
@@ -63,7 +64,7 @@ tcp_server(
                 $self->push_read(
                     json => sub {
                         my ( $handle, $data ) = @_;
-                        $log->debug("Printer data ".Dumper($data));
+                        $log->debug( "Printer data " . Dumper($data) );
                         process_printer_command( $handle, $data );
                     }
                 );
@@ -140,7 +141,6 @@ $log->info("Listening on $host:$port\n");
 
 $cv->recv;
 
-
 sub process_printer_command {
     my $handle = shift;
     my $data   = shift;
@@ -156,8 +156,7 @@ sub process_printer_command {
         ) if ($is_cli_connected);
     }
 
-    if ( $data->{'command'} eq 'connect' )
-    {    #Worker connection status message
+    if ( $data->{'command'} eq 'connect' ) {   #Worker connection status message
 
         $log->info(
             sprintf(
@@ -167,7 +166,12 @@ sub process_printer_command {
         );
 
         #Change handler key name to port name
-        $connections{ $data->{'port'} } = { handle => $handle, pid => $data->{'pid'}, port => $data->{'port'}, speed => $data->{'speed'}};
+        $connections{ $data->{'port'} } = {
+            handle => $handle,
+            pid    => $data->{'pid'},
+            port   => $data->{'port'},
+            speed  => $data->{'speed'}
+        };
         delete( $connections{$handle} );
 
         #Set flag that worker connected
@@ -187,23 +191,21 @@ sub process_printer_command {
         $log->info(
             sprintf( "Printer temp: %.1f@%.1f", $data->{'E0'}, $data->{'B'} ) );
     }
-    else {       
+    else {
         $control_handle->push_write(
-                json => {
-                    reply => $data->{'line'}
-                }
-            );
+            json => {
+                reply => $data->{'line'}
+            }
+        );
     }
 
 }
-
 
 sub process_command {
     my $handle = shift;
     my $data   = shift;
     $log->debug( "process_command: " . Dumper($data) );
 
-    
     if ( $data->{'command'} eq 'connect' ) {
 
         #Spawn new worker
@@ -227,28 +229,33 @@ sub process_command {
             );
         }
     }
-    elsif ( $data->{'command'} eq 'status' ) { 
+    elsif ( $data->{'command'} eq 'status' ) {
+
         # Send workers list to CLI
-        
+
         my $reply_str = "Active workers:\n";
 
-        for my $key (keys %connections) {
-            $reply_str .= sprintf("worker [%d] connected to port [%s]\n", $connections{$key}{'pid'}, $connections{$key}{'port'});
+        for my $key ( keys %connections ) {
+            $reply_str .= sprintf(
+                "worker [%d] connected to port [%s]\n",
+                $connections{$key}{'pid'},
+                $connections{$key}{'port'}
+            );
         }
 
-        $control_handle->push_write(
-            json => { reply => $reply_str } );
+        $control_handle->push_write( json => { reply => $reply_str } );
     }
-    elsif ( $data->{'command'} eq 'send' ) {    
+    elsif ( $data->{'command'} eq 'send' ) {
+
         # Send command to printer
 
         if ( scalar( keys(%connections) ) == 1 ) {
             my ($h_name) = keys %connections;
             my $handler = $connections{$h_name}{'handle'};
-            
+
             $is_user_command = 1; #Set flag to return raw printer answer to user
-            
-            $log->debug(sprintf("User command set [%d]", $is_user_command));
+
+            $log->debug( sprintf( "User command set [%d]", $is_user_command ) );
 
             $handler->push_write(
                 json => {
@@ -261,7 +268,8 @@ sub process_command {
             $control_handle->push_write(
                 json => {
                     command => 'error',
-                    message => 'Invalid count of connections. Select printer first.'
+                    message =>
+                      'Invalid count of connections. Select printer first.'
                 }
             );
 
@@ -270,6 +278,7 @@ sub process_command {
 
     }
     elsif ( $data->{'command'} eq 'print' ) {
+
         # Print file
 
         my ($h_name) = keys %connections;
@@ -277,29 +286,30 @@ sub process_command {
         $handler->push_write( json =>
               { command => 'print', params => { file => $data->{'file'} } } );
     }
-    elsif ( $data->{'command'} eq 'disconnect' ) { 
+    elsif ( $data->{'command'} eq 'disconnect' ) {
+
         # Drop print and stop worker
         my ($h_name) = keys %connections;
         my $handler = $connections{$h_name}{'handle'};
 
-        $handler->push_write( json =>
-              { command => 'disconnect', params => { } } );
-        delete($connections{$h_name});
+        $handler->push_write(
+            json => { command => 'disconnect', params => {} } );
+        delete( $connections{$h_name} );
     }
-    elsif ( $data->{'command'} eq 'stop' ) { 
+    elsif ( $data->{'command'} eq 'stop' ) {
+
         # Stop print
 
         my ($h_name) = keys %connections;
         my $handler = $connections{$h_name}{'handle'};
-        $handler->push_write( json =>
-              { command => 'stop', params => { } } );
+        $handler->push_write( json => { command => 'stop', params => {} } );
     }
     else {
         #Call if command not set
         $log->error( "Unknown command:" . Dumper($data) );
         $control_handle->push_write(
             json => {
-                reply => sprintf("Unknown command [%s]", $data->{'command'})
+                reply => sprintf( "Unknown command [%s]", $data->{'command'} )
             }
         );
     }

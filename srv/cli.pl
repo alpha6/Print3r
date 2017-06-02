@@ -22,9 +22,8 @@ my $cv = AE::cv;
 my $port  = '/dev/ttyUSB0';
 my $speed = 115200;
 
-my @opts  = qw/port=s speed=i file=s
+my @opts = qw/port=s speed=i file=s
   /;
-
 
 # Connect to server
 tcp_connect(
@@ -42,20 +41,20 @@ tcp_connect(
                 $handle->push_read(
                     json => sub {
                         my ( $handle, $data ) = @_;
-                        $rl->print( sprintf("%s\n", $data->{'reply'}));
+                        $rl->print( sprintf( "%s\n", $data->{'reply'} ) );
                     }
                 );
 
             },
             on_eof => sub {
                 my ($hdl) = @_;
-                $rl->print( "Connecton to server was closed.\n");
+                $rl->print("Connecton to server was closed.\n");
                 $hdl->destroy();
                 exit 0;
             },
             on_error => sub {
-                my ($hdl, $data) = shift;
-                $rl->print( "Lost connecton to server.\n");
+                my ( $hdl, $data ) = shift;
+                $rl->print("Lost connecton to server.\n");
                 $hdl->destroy();
                 exit 1;
             },
@@ -66,23 +65,22 @@ tcp_connect(
 );
 
 # now initialise readline
-$rl = new AnyEvent::ReadLine::Gnu prompt => "cmd> ", on_line => sub {
+$rl = new AnyEvent::ReadLine::Gnu
+  prompt  => "cmd> ",
+  on_line => sub {
     my $line = shift;
 
     if ( $line =~ m/^[G|M|T].*/ ) {
-        $handle->push_write(
-            json => { command => 'send', value => $line } );
+        $handle->push_write( json => { command => 'send', value => $line } );
     }
     else {
         my $input = parse_input($line);
         $handle->push_write( json =>
-              { command => $input->{'command'}, %{ $input->{'options'} } }
-        );
-    }    
-};
+              { command => $input->{'command'}, %{ $input->{'options'} } } );
+    }
+  };
 
 $cv->recv;
-
 
 sub parse_input {
     my $input_line = shift;

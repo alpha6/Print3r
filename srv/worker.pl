@@ -1,6 +1,8 @@
 #!/usr/bin/env perl
 
 use v5.20;
+use strict;
+use warnings;
 
 use lib 'lib';
 use AnyEvent;
@@ -26,8 +28,10 @@ my $printer_handle = undef;
 my $printing_file  = undef;
 my $port_handle    = undef;
 my %timers;
+
 my $in_command_flag  = 0;
 my $is_printer_ready = 1;
+my $is_print_paused  = 0;
 
 my $printer_port = '/dev/ttyUSB0';
 my $port_speed   = 115200;
@@ -40,21 +44,17 @@ GetOptions(
 my $worker = Print3r::Worker->new();
 
 sub get_line {
-    while (1) {
-        my $line = <$printing_file>;
-
-        unless ( defined($line) ) {
-            undef $printing_file;
-            die "No strings left in file";
-        }
-
+    state $line_number = 0;
+    while ( my $line = <$printing_file> ) {
         if ( $line =~ m/^[G|M|T].*/ ) {
             chomp $line;
             $log->debug( sprintf( "line [%s]\n", $line ) );
+            $line_number++;
             return $line;
         }
     }
 
+    return $line_number;
 }
 
 sub set_heartbeat {
@@ -67,54 +67,128 @@ sub set_heartbeat {
         }
     );
     $timers{'heartbeat_timer'} = $heartbeat_timer;
+
+    return;
 }
 
 sub process_command {
     my $command = shift;
-    $log->debug( "Parsed command: " . Dumper($command) );
-    $log->debug("Printer status: [$is_printer_ready]");
+
+    # Check that the printer is ready for new commands and set flag
     if ( exists( $command->{'printer_ready'} ) ) {
         $is_printer_ready = $command->{'printer_ready'};
-        $log->debug("Printer status: [$is_printer_ready]");
     }
-    if ( $command->{'type'} eq 'start_printing' ) {
-        if ( defined($printing_file) ) {
-            my $next_command;
-            eval { $next_command = get_line(); };
-            if ($@) {
-                $handle->push_write( json =>
-                      { command => "error", message => "Printing error: $@" } );
-            }
-            else {
-                $port_handle->write("$next_command\n");
-            }
-        }
-        else {
-            $handle->push_write(
-                json => {
-                    command => "error",
-                    message => "No file to print is available"
-                }
-            );
-        }
 
-    }
-    elsif ( $command->{'printer_ready'} ) {
-        $log->debug("Printer ready confirmed");
-        if ( defined($printing_file) && $is_printer_ready ) {
-            my $next_command = get_line();
-            $port_handle->write("$next_command\n");
-        }
-    }
-    elsif ( $command->{'type'} eq 'temperature' ) {
+# The temperature is processed separately because it should be shown while printing.
+    if ( $command->{'type'} eq 'temperature' ) {
         $handle->push_write(
             json => {
                 command => 'status',
                 E0      => $command->{'E0'},
-                B       => $command->{'B'}
+                B       => $command->{'B'},
+                line    => $command->{'line'},
             }
         );
     }
+
+    if ( $command->{'type'} eq 'start_printing' ) {
+        eval {
+            if ( my $next_command = get_line() ) {
+                $port_handle->write("$next_command\n");
+            }
+            else {
+                $handle->push_write(
+                    json => {
+                        command => "error",
+                        message => "No file to print is available"
+                    }
+                );
+            }
+        };
+        if ($@) {
+            $handle->push_write( json =>
+                  { command => "error", message => "Printing error: $@" } );
+        }
+
+    }
+    elsif ( !$is_print_paused && $command->{'printer_ready'} ) {
+        if ( defined($printing_file) && $is_printer_ready ) {
+            my $next_command = get_line();
+
+            #The function get_line return number only if print ended
+            if ( $next_command !~ /^\d+$/ ) {
+                $port_handle->write("$next_command\n");
+            }
+            else {
+                $handle->push_write(
+                    json => {
+                        command => 'message',
+                        line =>
+                          sprintf( 'Printing has ended. Printed [%d] lines.',
+                            $next_command ),
+                    }
+                );
+                undef $printing_file;
+            }
+        }
+    }
+    elsif ( $command->{'type'} eq 'error' ) {
+        $handle->push_write(
+            json => {
+                command => 'error',
+                line => sprintf( 'Print emergency stopped!. Priner message: %d',
+                    $command->{'line'} ),
+            }
+        );
+    }
+    elsif ( $command->{'type'} eq 'pause' ) {
+        $is_print_paused = 1;
+
+        $log->info("Printing has paused.");
+        $handle->push_write(
+            json => {
+                command => 'message',
+                line    => sprintf('Printing has paused!'),
+            }
+        );
+    }
+    elsif ( $command->{'type'} eq 'resume' ) {
+        $is_print_paused = 0;
+
+        $log->info("Printing has resumed.");
+        $handle->push_write(
+            json => {
+                command => 'message',
+                line    => sprintf('Printing has resumed!'),
+            }
+        );
+
+        # Send command to resume printing
+        $port_handle->write("M105\n");
+    }
+    elsif ( $command->{'type'} eq 'stop' ) {
+        $log->info("Print stopped.");
+
+        $is_printer_ready = 0;
+        undef($printing_file);
+
+        $handle->push_write(
+            json => {
+                command => 'message',
+                line    => sprintf('Printing has stopped!'),
+            }
+        );
+    }
+    else {
+        $handle->push_write(
+            json => {
+                command => 'other',
+                line    => $command->{'line'},
+            }
+        );
+    }
+
+    return;
 }
 
 sub connect_to_printer {
@@ -156,6 +230,8 @@ sub connect_to_printer {
 
     #Start communication with the printer
     $port_handle->write("M105\n");
+
+    return;
 }
 
 my $commands = print3r::Commands->new(
@@ -163,22 +239,37 @@ my $commands = print3r::Commands->new(
         print => sub {
             my $self   = shift;
             my $params = shift;
-            $log->debug( "printing file: " . Dumper($params) );
+            $log->info(
+                sprintf( "Starting print. File: %s", $params->{'file'} ) );
             open( $printing_file, '<', $params->{'file'} ) or die $!;
             process_command( { type => "start_printing" } );
         },
         send => sub {
-            $log->debug( "send:" . Dumper( \@_ ) );
             my $self   = shift;
             my $params = shift;
-            $log->debug( "G-Code: " . Dumper($params) );
+            $log->info( "External G-Code: " . Dumper($params) );
             $port_handle->write( sprintf( "%s\n", $params->{'value'} ) );
         },
         disconnect => sub {
+            $log->info("Disconnecting...");
             $port_handle->close();
             $handle->destroy();
             exit 0;
         },
+        pause => sub {
+            process_command( { type => 'pause' } );
+        },
+        resume => sub {
+            process_command( { type => 'resume' } );
+        },
+        stop => sub {
+            $log->info("Stopping print...");
+            process_command( { type => 'stop' } );
+        },
+        status => sub {
+            $port_handle->write("M105\n");
+
+        }
     }
 );
 
@@ -197,6 +288,7 @@ my $test_timer = AnyEvent->timer(
     }
 );
 
+# Connect to master
 tcp_connect(
     "127.0.0.1",
     44244,
@@ -212,7 +304,8 @@ tcp_connect(
                 $handle->push_read(
                     json => sub {
                         my ( $handle, $data ) = @_;
-                        $log->debug( "Worker read:" . Dumper($data) );
+
+                        # $log->debug( "Worker read:" . Dumper($data) );
                         my $name   = lc( $data->{'command'} );
                         my $params = $data->{'params'};
                         $commands->$name($params);
@@ -231,8 +324,6 @@ tcp_connect(
                 $hdl->destroy();
             },
         );
-
-        $handle->push_write( json => { command => "HELLO" } );
 
         # set_heartbeat();
         connect_to_printer();

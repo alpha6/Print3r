@@ -1,6 +1,8 @@
 #!/usr/bin/env perl
 
 use v5.20;
+use strict;
+use warnings;
 
 use AnyEvent;
 use AnyEvent::Handle;
@@ -19,12 +21,11 @@ my $server_port = 44243;
 
 my $cv = AE::cv;
 
-my $port  = '/dev/ttyUSB0';
+my $port  = '/dev/ttyUSB0';    #default printer port
 my $speed = 115200;
-my $cmd   = "";
-my @opts  = qw/port=s speed=i file=s
-  /;
 
+my @opts = qw/port=s speed=i file=s
+  /;
 
 # Connect to server
 tcp_connect(
@@ -41,62 +42,68 @@ tcp_connect(
                 my ($self) = @_;
                 $handle->push_read(
                     json => sub {
-                        my ( $handle, $data ) = @_;
-                        $rl->print( Dumper($data));
+                        my ( $hdl, $data ) = @_;
+                        $rl->print( sprintf( "%s\n", $data->{'reply'} ) );
                     }
                 );
 
             },
             on_eof => sub {
                 my ($hdl) = @_;
-                $rl->print( "Connecton to server was closed.\n");
+                $rl->print("Connecton to server was closed.\n");
                 $hdl->destroy();
                 exit 0;
             },
             on_error => sub {
-                my $hdl = shift;
-                $rl->print( "Lost connecton to server.\n");
+                my ( $hdl, $data ) = shift;
+                $rl->print("Lost connecton to server.\n");
                 $hdl->destroy();
                 exit 1;
             },
         );
 
-        $handle->push_write( json => { command => "status" } );
+        $handle->push_write( json => { command => 'status' } );
     }
 );
 
 # now initialise readline
-$rl = new AnyEvent::ReadLine::Gnu prompt => "cmd> ", on_line => sub {
-    my $line = shift;
+$rl = AnyEvent::ReadLine::Gnu->new(
+    prompt  => 'cmd> ',
+    on_line => sub {
+        my $line = shift;
 
-    if ( $line =~ m/^[G|M|T].*/ ) {
-        $handle->push_write(
-            json => { command => 'send', value => $line } );
+
+        if ($line =~ /^exit/) {
+            $rl->print("Exit\n");
+            $handle->destroy();
+            exit(0);
+        }
+        elsif ( $line =~ m/^[G|M|T].*/ ) {
+            $handle->push_write(
+                json => { command => 'send', value => $line } );
+        }
+        else {
+            my $input = parse_input($line);
+            $handle->push_write( json =>
+                  { command => $input->{'command'}, %{ $input->{'options'} } }
+            );
+        }
     }
-    else {
-        my $input = parse_input($line);
-        $handle->push_write( json =>
-              { command => $input->{'command'}, %{ $input->{'options'} } }
-        );
-    }    
-};
+);
 
 $cv->recv;
-
 
 sub parse_input {
     my $input_line = shift;
     chomp $input_line;
 
-    # say "[$input_line]";
-
+# Cut the first element of the string and save it as command. Another part of the string will be parsed as commad arguments
     my ( $cmd, @args ) = split /\s+/, $input_line;
-    my $args = join ' ', @args;
+    my $args = join q{ }, @args;
 
     my $mopts = {};
     GetOptionsFromString( $args, $mopts, @opts );
 
-    # say Dumper($mopts);
     return { command => $cmd, options => $mopts };
 
 }

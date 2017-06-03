@@ -212,6 +212,7 @@ sub process_printer_command {
         ) if ($is_cli_connected);
     }
 
+    return;
 }
 
 sub process_command {
@@ -339,4 +340,6 @@ sub process_command {
             }
         );
     }
+    
+    return;
 }

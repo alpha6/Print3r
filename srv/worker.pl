@@ -63,7 +63,7 @@ sub set_heartbeat {
         after    => 10,
         interval => 10,
         cb       => sub {
-            $handle->push_write( json => { command => "HEARTBEAT" } );
+            $handle->push_write( json => { command => 'HEARTBEAT' } );
         }
     );
     $timers{'heartbeat_timer'} = $heartbeat_timer;
@@ -99,15 +99,15 @@ sub process_command {
             else {
                 $handle->push_write(
                     json => {
-                        command => "error",
-                        message => "No file to print is available"
+                        command => 'error',
+                        message => 'No file to print is available'
                     }
                 );
             }
         };
         if ($@) {
             $handle->push_write( json =>
-                  { command => "error", message => "Printing error: $@" } );
+                  { command => 'error', message => 'Printing error: $@' } );
         }
 
     }
@@ -144,7 +144,7 @@ sub process_command {
     elsif ( $command->{'type'} eq 'pause' ) {
         $is_print_paused = 1;
 
-        $log->info("Printing has paused.");
+        $log->info('Printing has paused.');
         $handle->push_write(
             json => {
                 command => 'message',
@@ -155,7 +155,7 @@ sub process_command {
     elsif ( $command->{'type'} eq 'resume' ) {
         $is_print_paused = 0;
 
-        $log->info("Printing has resumed.");
+        $log->info('Printing has resumed.');
         $handle->push_write(
             json => {
                 command => 'message',
@@ -167,7 +167,7 @@ sub process_command {
         $port_handle->write("M105\n");
     }
     elsif ( $command->{'type'} eq 'stop' ) {
-        $log->info("Print stopped.");
+        $log->info('Print stopped.');
 
         $is_printer_ready = 0;
         undef($printing_file);
@@ -199,7 +199,7 @@ sub connect_to_printer {
     $printer_handle = AnyEvent::Handle->new(
         fh       => $fh,
         on_error => sub {
-            my ( $printer_handle, $fatal, $message ) = @_;
+            my ( undef, $fatal, $message ) = @_;
             $printer_handle->destroy;
             undef $printer_handle;
             print STDERR "$fatal : $message\n";
@@ -207,10 +207,10 @@ sub connect_to_printer {
                 json => { command => "error", message => $message } );
         },
         on_read => sub {
-            my $printer_handle = shift;
-            $printer_handle->push_read(
+            my $p_hdl = shift;
+            $p_hdl->push_read(
                 line => sub {
-                    my ( $printer_handle, $line ) = @_;
+                    my ( undef, $line ) = @_;
                     my $parsed_reply = $worker->parse_line($line);
                     process_command($parsed_reply);
                 }
@@ -219,9 +219,9 @@ sub connect_to_printer {
     );
     $handle->push_write(
         json => {
-            command => "connect",
-            status  => "ready",
-            message => "Connected to [" . $printer_port . "]",
+            command => 'connect',
+            status  => 'ready',
+            message => sprintf('Connected to [%s]', $printer_port),
             pid     => $$,
             port    => $printer_port,
             speed   => $port_speed
@@ -240,18 +240,18 @@ my $commands = print3r::Commands->new(
             my $self   = shift;
             my $params = shift;
             $log->info(
-                sprintf( "Starting print. File: %s", $params->{'file'} ) );
+                sprintf( 'Starting print. File: %s', $params->{'file'} ) );
             open( $printing_file, '<', $params->{'file'} ) or die $!;
-            process_command( { type => "start_printing" } );
+            process_command( { type => 'start_printing' } );
         },
         send => sub {
             my $self   = shift;
             my $params = shift;
-            $log->info( "External G-Code: " . Dumper($params) );
+            $log->info( sprintf('External G-Code: %s', Dumper($params)) );
             $port_handle->write( sprintf( "%s\n", $params->{'value'} ) );
         },
         disconnect => sub {
-            $log->info("Disconnecting...");
+            $log->info('Disconnecting...');
             $port_handle->close();
             $handle->destroy();
             exit 0;
@@ -263,7 +263,7 @@ my $commands = print3r::Commands->new(
             process_command( { type => 'resume' } );
         },
         stop => sub {
-            $log->info("Stopping print...");
+            $log->info('Stopping print...');
             process_command( { type => 'stop' } );
         },
         status => sub {
@@ -290,7 +290,7 @@ my $test_timer = AnyEvent->timer(
 
 # Connect to master
 tcp_connect(
-    "127.0.0.1",
+    '127.0.0.1',
     44244,
     sub {
         my ($fh) = @_
@@ -315,12 +315,12 @@ tcp_connect(
             },
             on_eof => sub {
                 my ($hdl) = @_;
-                $log->error("Connecton to server was closed.");
+                $log->error('Connecton to server was closed.');
                 $hdl->destroy();
             },
             on_error => sub {
                 my $hdl = shift;
-                $log->error( print "Lost connecton to server." );
+                $log->error( 'Lost connecton to server.' );
                 $hdl->destroy();
             },
         );

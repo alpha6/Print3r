@@ -12,6 +12,8 @@ use IPC::Open2;
 use JSON;
 use Log::Log4perl;
 
+use Try::Tiny;
+
 use Data::Dumper;
 
 my $cv = AE::cv;
@@ -99,7 +101,7 @@ tcp_server(
 
         if ( defined($control_handle) ) {
             $log->error('Only one controll process is allowed!');
-            syswrite $fh, 'Only one controll process is allowed!';
+            syswrite ($fh, "Only one controll process is allowed!\015\012");
             return;
         }
 
@@ -225,15 +227,19 @@ sub process_command {
         #Spawn new worker
         my ( $chld_out, $chld_in );
         my $pid;
-        eval {
+        try {
             $pid = open2(
                 $chld_out, $chld_in, './worker.pl',
                 '-p=' . $data->{'port'},
                 '-s=' . $data->{'speed'}
             );
-        };
-        if ($@) {
-            $log->error("Error: $@");
+        } catch {
+            $log->error("Worker spawn error: $_");
+            if ($is_cli_connected) {
+                $control_handle->push_write( json =>
+                    { reply => sprintf( 'Worker spawn error: %s', $_ ) }
+                );
+            }
         }
 
         $workers{$pid} = { chld_in => $chld_in, chld_out => $chld_out };

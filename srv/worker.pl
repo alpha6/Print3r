@@ -110,7 +110,7 @@ sub process_command {
         catch {
             $handle->push_write( json =>
                   { command => 'error', message => "Printing error: $_" } );
-        }
+        };
 
     }
     elsif ( !$is_print_paused && $command->{'printer_ready'} ) {

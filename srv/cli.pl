@@ -21,7 +21,7 @@ my $server_port = 44243;
 
 my $cv = AE::cv;
 
-my $port  = '/dev/ttyUSB0'; #default printer port
+my $port  = '/dev/ttyUSB0';    #default printer port
 my $speed = 115200;
 
 my @opts = qw/port=s speed=i file=s
@@ -43,7 +43,7 @@ tcp_connect(
                 $handle->push_read(
                     json => sub {
                         my ( $hdl, $data ) = @_;
-                        $rl->print( sprintf("%s\n", $data->{'reply'} ) );
+                        $rl->print( sprintf( "%s\n", $data->{'reply'} ) );
                     }
                 );
 
@@ -91,7 +91,7 @@ sub parse_input {
     my $input_line = shift;
     chomp $input_line;
 
-    # Cut the first element of the string and save it as command. Another part of the string will be parsed as commad arguments
+# Cut the first element of the string and save it as command. Another part of the string will be parsed as commad arguments
     my ( $cmd, @args ) = split /\s+/, $input_line;
     my $args = join q{ }, @args;
 

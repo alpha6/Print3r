@@ -302,8 +302,7 @@ sub process_command {
 
         my ($h_name) = keys %connections;
         my $handler = $connections{$h_name}{'handle'};
-        $handler->push_write( json =>
-              { command => 'pause', params => {} } );
+        $handler->push_write( json => { command => 'pause', params => {} } );
     }
     elsif ( $data->{'command'} eq 'resume' ) {
 
@@ -311,8 +310,7 @@ sub process_command {
 
         my ($h_name) = keys %connections;
         my $handler = $connections{$h_name}{'handle'};
-        $handler->push_write( json =>
-              { command => 'resume', params => {} } );
+        $handler->push_write( json => { command => 'resume', params => {} } );
     }
     elsif ( $data->{'command'} eq 'disconnect' ) {
 

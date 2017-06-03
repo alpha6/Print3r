@@ -9,6 +9,8 @@ use AnyEvent;
 use AnyEvent::Handle;
 use AnyEvent::Socket;
 
+use Try::Tiny;
+
 use Log::Log4perl;
 
 use Getopt::Long;
@@ -92,7 +94,7 @@ sub process_command {
     }
 
     if ( $command->{'type'} eq 'start_printing' ) {
-        eval {
+        try {
             if ( my $next_command = get_line() ) {
                 $port_handle->write("$next_command\n");
             }
@@ -104,10 +106,10 @@ sub process_command {
                     }
                 );
             }
-        };
-        if ($@) {
+        }
+        catch {
             $handle->push_write( json =>
-                  { command => 'error', message => 'Printing error: $@' } );
+                  { command => 'error', message => "Printing error: $_" } );
         }
 
     }
@@ -204,7 +206,7 @@ sub connect_to_printer {
             undef $printer_handle;
             print STDERR "$fatal : $message\n";
             $handle->push_write(
-                json => { command => "error", message => $message } );
+                json => { command => 'error', message => $message } );
         },
         on_read => sub {
             my $p_hdl = shift;
@@ -221,7 +223,7 @@ sub connect_to_printer {
         json => {
             command => 'connect',
             status  => 'ready',
-            message => sprintf('Connected to [%s]', $printer_port),
+            message => sprintf( 'Connected to [%s]', $printer_port ),
             pid     => $$,
             port    => $printer_port,
             speed   => $port_speed
@@ -247,7 +249,7 @@ my $commands = print3r::Commands->new(
         send => sub {
             my $self   = shift;
             my $params = shift;
-            $log->info( sprintf('External G-Code: %s', Dumper($params)) );
+            $log->info( sprintf( 'External G-Code: %s', Dumper($params) ) );
             $port_handle->write( sprintf( "%s\n", $params->{'value'} ) );
         },
         disconnect => sub {
@@ -299,13 +301,10 @@ tcp_connect(
         $handle = AnyEvent::Handle->new(
             fh      => $fh,
             poll    => 'r',
-            on_read => sub {
-                my ($self) = @_;
+            on_read => sub { #Process master command
                 $handle->push_read(
                     json => sub {
-                        my ( $handle, $data ) = @_;
-
-                        # $log->debug( "Worker read:" . Dumper($data) );
+                        my ( undef, $data ) = @_;
                         my $name   = lc( $data->{'command'} );
                         my $params = $data->{'params'};
                         $commands->$name($params);
@@ -320,7 +319,7 @@ tcp_connect(
             },
             on_error => sub {
                 my $hdl = shift;
-                $log->error( 'Lost connecton to server.' );
+                $log->error('Lost connecton to server.');
                 $hdl->destroy();
             },
         );

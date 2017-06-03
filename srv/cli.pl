@@ -72,8 +72,7 @@ $rl = AnyEvent::ReadLine::Gnu->new(
     on_line => sub {
         my $line = shift;
 
-
-        if ($line =~ /^exit/) {
+        if ( $line =~ /^exit/ ) {
             $rl->print("Exit\n");
             $handle->destroy();
             exit(0);

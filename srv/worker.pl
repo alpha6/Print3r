@@ -301,7 +301,7 @@ tcp_connect(
         $handle = AnyEvent::Handle->new(
             fh      => $fh,
             poll    => 'r',
-            on_read => sub { #Process master command
+            on_read => sub {    #Process master command
                 $handle->push_read(
                     json => sub {
                         my ( undef, $data ) = @_;

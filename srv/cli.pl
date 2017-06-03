@@ -55,7 +55,10 @@ tcp_connect(
                 exit 0;
             },
             on_error => sub {
-                my ( $hdl, $data ) = shift;
+                my $hdl = shift;
+                my $msg = $hdl->rbuf;
+                chomp $msg;
+                $rl->print(sprintf("Server message: %s\n", $msg));
                 $rl->print("Lost connecton to server.\n");
                 $hdl->destroy();
                 exit 1;
@@ -72,8 +75,7 @@ $rl = AnyEvent::ReadLine::Gnu->new(
     on_line => sub {
         my $line = shift;
 
-
-        if ($line =~ /^exit/) {
+        if ( $line =~ /^exit/ ) {
             $rl->print("Exit\n");
             $handle->destroy();
             exit(0);

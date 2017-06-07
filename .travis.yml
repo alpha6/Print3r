@@ -6,5 +6,5 @@ language: perl
 perl:
   - "5.20"
 before_install:
-  - sudo apt-get -qq update
-  - sudo apt-get install -y libreadline-dev
+  - apt-get -qq update
+  - apt-get install -y libreadline-dev

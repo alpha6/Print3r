@@ -240,7 +240,7 @@ sub process_command {
                     { reply => sprintf( 'Worker spawn error: %s', $_ ) }
                 );
             }
-        }
+        };
 
         $workers{$pid} = { chld_in => $chld_in, chld_out => $chld_out };
         if ($is_cli_connected) {

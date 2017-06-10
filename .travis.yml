@@ -8,3 +8,5 @@ perl:
 before_install:
   - sudo apt-get -qq update
   - sudo apt-get install -y libreadline-dev
+script:
+  - prove -r t

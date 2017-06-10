@@ -1,6 +1,6 @@
 Yet another 3d-printer control tool.
 
-TravisCI: [![Build Status](https://travis-ci.org/alpha6/Print3r.svg?branch=master)](https://https://travis-ci.org/alpha6/Print3r)
+TravisCI: [![Build Status](https://travis-ci.org/alpha6/Print3r.svg?branch=master)](https://travis-ci.org/alpha6/Print3r)
 
 The early prototype!
 

@@ -8,6 +8,7 @@ requires 'Try::Tiny';
 requires 'Getopt::Long';
 requires 'AnyEvent::ReadLine::Gnu';
 requires 'Device::SerialPort';
+requires 'Carp';
 
 on test => sub {
     requires 'Test::More';

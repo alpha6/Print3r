@@ -9,6 +9,6 @@ requires 'Getopt::Long';
 requires 'AnyEvent::ReadLine::Gnu';
 
 on test => sub {
-    requires Test::More;
-    requires Test::Deep;
+    requires 'Test::More';
+    requires 'Test::Deep';
 };

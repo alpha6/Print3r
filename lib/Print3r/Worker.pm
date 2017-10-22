@@ -1,7 +1,7 @@
 package Print3r::Worker;
 
 use v5.20;
-use warings;
+use warnings;
 our $VERSION = version->declare('v0.0.2');
 
 use JSON;

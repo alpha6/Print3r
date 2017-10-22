@@ -1,7 +1,8 @@
 package Print3r::Worker;
 
 use v5.20;
-our $VERSION = version->declare("v0.0.2");
+use warnings;
+our $VERSION = version->declare('v0.0.2');
 
 use JSON;
 use AnyEvent::Handle;
@@ -27,10 +28,10 @@ sub connect_to_printer{
     say "Connecting.. [$device_port] [$port_speed]";
     my $port = Device::SerialPort->new($device_port) or croak "Can't connect to [$device_port] at speed [$port_speed]";
 
-    $port->handshake("none");
+    $port->handshake('none');
     $port->baudrate($port_speed);    # Configure this to match your device
     $port->databits(8);
-    $port->parity("none");
+    $port->parity('none');
     $port->stopbits(1);
     $port->stty_echo(0);
     $port->debug(1);
@@ -43,7 +44,7 @@ sub connect_to_printer{
 
 sub get_raw_handler {
     my $self = shift;
-    croak "Printer isn't connected" unless defined $self->{'printer_port'};
+    croak 'Printer isn\'t connected' unless defined $self->{'printer_port'};
 
     return $self->{'printer_port'}{'HANDLE'};
 }
@@ -58,17 +59,17 @@ sub parse_line {
     }
     elsif ( $line =~ /^(ok|start)/ ) {
         # say "ready";
-        $type->{'type'} = "ready";
+        $type->{'type'} = 'ready';
         $type->{'printer_ready'} = 1;
         $type->{'line'} = $line;
     }
     elsif ($line eq 'Watchdog Reset') {
-        $type->{'type'} = "error";
+        $type->{'type'} = 'error';
         $type->{'printer_ready'} = 0;
         $type->{'line'} = $line;
-    } 
+    }
     else {
-        $type->{'type'} = "other";
+        $type->{'type'} = 'other';
         $type->{'printer_ready'} = 0;
         $type->{'line'} = $line;
     }
@@ -80,8 +81,8 @@ sub _parse_temp_line {
     my $self = shift;
     my $line = shift;
     my $parsed = {};
-    
-    $parsed->{'type'} = "temperature";
+
+    $parsed->{'type'} = 'temperature';
     $parsed->{'line'} = $line;
     $parsed->{'B'} = undef; #Undefined if printer doesn't have heated bed
 
@@ -89,13 +90,13 @@ sub _parse_temp_line {
 
     for my $item (@line) {
         if ($item eq 'ok') {
-            $parsed->{'printer_ready'} = 1;        
+            $parsed->{'printer_ready'} = 1;
         } elsif ($item =~ /T(?<ex_num>\d+)?:(?<temp>\d+\.\d+)/) {
-            $parsed->{sprintf('E%s',$+{ex_num} || 0)} = $+{'temp'};        
+            $parsed->{sprintf('E%s',$+{ex_num} || 0)} = $+{'temp'};
         } elsif ($item =~ /B:?(\d+\.\d+)/) {
             #B\d+\.\d+ - Marlin dialect
             #B:\d+\.\d+ - Smoothieware
-            $parsed->{'B'} = $1;        
+            $parsed->{'B'} = $1;
         }
     }
 

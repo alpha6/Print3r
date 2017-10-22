@@ -101,7 +101,7 @@ tcp_server(
 
         if ( defined($control_handle) ) {
             $log->error('Only one controll process is allowed!');
-            syswrite ($fh, "Only one controll process is allowed!\015\012");
+            syswrite( $fh, "Only one controll process is allowed!\015\012" );
             return;
         }
 
@@ -161,57 +161,64 @@ sub process_printer_command {
         ) if ($is_cli_connected);
     }
 
-    if ( $data->{'command'} eq 'connect' ) {   #Worker connection status message
+    for ( $data->{'command'} ) {
+        when ('connect') {    #Worker connection status message
 
-        $log->info(
-            sprintf(
-                'Worker [%s] is connected to [%s] at speed [%s]',
-                $data->{'pid'}, $data->{'port'}, $data->{'speed'}
-            )
-        );
+            $log->info(
+                sprintf(
+                    'Worker [%s] is connected to [%s] at speed [%s]',
+                    $data->{'pid'}, $data->{'port'}, $data->{'speed'}
+                )
+            );
 
-        #Change handler key name to port name
-        $connections{ $data->{'port'} } = {
-            handle => $handle,
-            pid    => $data->{'pid'},
-            port   => $data->{'port'},
-            speed  => $data->{'speed'}
-        };
-        delete( $connections{$handle} );
+            #Change handler key name to port name
+            $connections{ $data->{'port'} } = {
+                handle => $handle,
+                pid    => $data->{'pid'},
+                port   => $data->{'port'},
+                speed  => $data->{'speed'}
+            };
+            delete( $connections{$handle} );
 
-        #Set flag that worker connected
-        $workers{ $data->{'pid'} }{'is_connected'} = 1;
-        if ( defined $control_handle ) {
-            $control_handle->push_write(
-                json => {
-                    reply => sprintf(
-                        'Worker [%s] is connected to [%s] at speed [%s]',
-                        $data->{'pid'}, $data->{'port'}, $data->{'speed'}
-                    )
-                }
+            #Set flag that worker connected
+            $workers{ $data->{'pid'} }{'is_connected'} = 1;
+            if ( defined $control_handle ) {
+                $control_handle->push_write(
+                    json => {
+                        reply => sprintf(
+                            'Worker [%s] is connected to [%s] at speed [%s]',
+                            $data->{'pid'}, $data->{'port'},
+                            $data->{'speed'}
+                        )
+                    }
+                );
+            }
+        }
+        when ('status') {
+            $log->info(
+                sprintf(
+                    'Printer temp: %.1f@%.1f',
+                    $data->{'E0'}, $data->{'B'}
+                )
             );
         }
-    }
-    elsif ( $data->{'command'} eq 'status' ) {
-        $log->info(
-            sprintf( 'Printer temp: %.1f@%.1f', $data->{'E0'}, $data->{'B'} ) );
-    }
-    elsif ( $data->{'command'} eq 'message' ) {
-        $log->info( sprintf( 'Printer message: %s', $data->{'message'} ) );
+        when ('message') {
+            $log->info( sprintf( 'Printer message: %s', $data->{'message'} ) );
 
-        $control_handle->push_write(
-            json => {
-                reply => $data->{'line'}
-            }
-        ) if ($is_cli_connected);
-    }
-    else {
-        $log->error( sprintf( 'Printer message: %s', $data->{'line'} ) );
-        $control_handle->push_write(
-            json => {
-                reply => $data->{'line'}
-            }
-        ) if ($is_cli_connected);
+            $control_handle->push_write(
+                json => {
+                    reply => $data->{'line'}
+                }
+            ) if ($is_cli_connected);
+        }
+        default {
+            $log->error( sprintf( 'Printer message: %s', $data->{'line'} ) );
+            $control_handle->push_write(
+                json => {
+                    reply => $data->{'line'}
+                }
+            ) if ($is_cli_connected);
+        }
     }
 
     return;
@@ -222,129 +229,140 @@ sub process_command {
     my $data   = shift;
     $log->debug( 'process_command: ' . Dumper($data) );
 
-    if ( $data->{'command'} eq 'connect' ) {
+    for ( $data->{'command'} ) {
+        when ('connect') {
 
-        #Spawn new worker
-        my ( $chld_out, $chld_in );
-        my $pid;
-        try {
-            $pid = open2(
-                $chld_out, $chld_in, './worker.pl',
-                '-p=' . $data->{'port'},
-                '-s=' . $data->{'speed'}
-            );
-        } catch {
-            $log->error("Worker spawn error: $_");
-            if ($is_cli_connected) {
-                $control_handle->push_write( json =>
-                    { reply => sprintf( 'Worker spawn error: %s', $_ ) }
+            #Spawn new worker
+            my ( $chld_out, $chld_in );
+            my $pid;
+            try {
+                $pid = open2(
+                    $chld_out, $chld_in, './worker.pl',
+                    '-p=' . $data->{'port'},
+                    '-s=' . $data->{'speed'}
                 );
             }
-        };
+            catch {
+                $log->error("Worker spawn error: $_");
+                if ($is_cli_connected) {
+                    $control_handle->push_write( json =>
+                          { reply => sprintf( 'Worker spawn error: %s', $_ ) }
+                    );
+                }
+            };
 
-        $workers{$pid} = { chld_in => $chld_in, chld_out => $chld_out };
-        if ($is_cli_connected) {
-            $control_handle->push_write( json =>
-                  { reply => sprintf( 'Worker started with pid [%s]', $pid ) }
+            $workers{$pid} = { chld_in => $chld_in, chld_out => $chld_out };
+            if ($is_cli_connected) {
+                $control_handle->push_write(
+                    json => {
+                        reply => sprintf( 'Worker started with pid [%s]', $pid )
+                    }
+                );
+            }
+        }
+        when ('status') {
+
+            # Send workers list to CLI
+
+            my $reply_str = "Active workers:\n";
+
+            for my $key ( keys %connections ) {
+                $reply_str .= sprintf(
+                    "worker [%d] connected to port [%s]\n",
+                    $connections{$key}{'pid'},
+                    $connections{$key}{'port'}
+                );
+            }
+
+            $control_handle->push_write( json => { reply => $reply_str } );
+        }
+        when ('send') {
+
+            # Send command to printer
+            if ( scalar( keys(%connections) ) == 1 ) {
+                my ($h_name) = keys %connections;
+                my $handler = $connections{$h_name}{'handle'};
+
+                $is_user_command =
+                  1;    #Set flag to return raw printer answer to user
+
+                $handler->push_write(
+                    json => {
+                        command => 'send',
+                        params  => { value => $data->{'value'} }
+                    }
+                );
+            }
+            else {
+                $control_handle->push_write(
+                    json => {
+                        command => 'error',
+                        message =>
+                          'Invalid count of connections. Select printer first.'
+                    }
+                );
+
+                $log->error(
+                    'Invalid count of connections. Select printer first.');
+            }
+
+        }
+        when ('print') {
+
+            # Print file
+
+            my ($h_name) = keys %connections;
+            my $handler = $connections{$h_name}{'handle'};
+            $handler->push_write( json =>
+                  { command => 'print', params => { file => $data->{'file'} } }
             );
         }
-    }
-    elsif ( $data->{'command'} eq 'status' ) {
+        when ('pause') {
 
-        # Send workers list to CLI
+            # Pause printing
 
-        my $reply_str = "Active workers:\n";
-
-        for my $key ( keys %connections ) {
-            $reply_str .= sprintf(
-                "worker [%d] connected to port [%s]\n",
-                $connections{$key}{'pid'},
-                $connections{$key}{'port'}
-            );
+            my ($h_name) = keys %connections;
+            my $handler = $connections{$h_name}{'handle'};
+            $handler->push_write(
+                json => { command => 'pause', params => {} } );
         }
+        when ('resume') {
 
-        $control_handle->push_write( json => { reply => $reply_str } );
-    }
-    elsif ( $data->{'command'} eq 'send' ) {
+            # Resume printing
 
-        # Send command to printer
-        if ( scalar( keys(%connections) ) == 1 ) {
+            my ($h_name) = keys %connections;
+            my $handler = $connections{$h_name}{'handle'};
+            $handler->push_write(
+                json => { command => 'resume', params => {} } );
+        }
+        when ('disconnect') {
+
+            # Drop print and stop worker
             my ($h_name) = keys %connections;
             my $handler = $connections{$h_name}{'handle'};
 
-            $is_user_command = 1; #Set flag to return raw printer answer to user
-
             $handler->push_write(
-                json => {
-                    command => 'send',
-                    params  => { value => $data->{'value'} }
-                }
-            );
+                json => { command => 'disconnect', params => {} } );
+            delete( $connections{$h_name} );
         }
-        else {
+        when ('stop') {
+
+            # Stop print
+
+            my ($h_name) = keys %connections;
+            my $handler = $connections{$h_name}{'handle'};
+            $handler->push_write( json => { command => 'stop', params => {} } );
+        }
+        default {
+            #Call if command not set
+            $log->error( 'Unknown command:' . Dumper($data) );
             $control_handle->push_write(
                 json => {
-                    command => 'error',
-                    message =>
-                      'Invalid count of connections. Select printer first.'
+                    reply =>
+                      sprintf( 'Unknown command [%s]', $data->{'command'} )
                 }
             );
-
-            $log->error('Invalid count of connections. Select printer first.');
         }
-
-    }
-    elsif ( $data->{'command'} eq 'print' ) {
-
-        # Print file
-
-        my ($h_name) = keys %connections;
-        my $handler = $connections{$h_name}{'handle'};
-        $handler->push_write( json =>
-              { command => 'print', params => { file => $data->{'file'} } } );
-    }
-    elsif ( $data->{'command'} eq 'pause' ) {
-
-        # Pause printing
-
-        my ($h_name) = keys %connections;
-        my $handler = $connections{$h_name}{'handle'};
-        $handler->push_write( json => { command => 'pause', params => {} } );
-    }
-    elsif ( $data->{'command'} eq 'resume' ) {
-
-        # Resume printing
-
-        my ($h_name) = keys %connections;
-        my $handler = $connections{$h_name}{'handle'};
-        $handler->push_write( json => { command => 'resume', params => {} } );
-    }
-    elsif ( $data->{'command'} eq 'disconnect' ) {
-
-        # Drop print and stop worker
-        my ($h_name) = keys %connections;
-        my $handler = $connections{$h_name}{'handle'};
-
-        $handler->push_write(
-            json => { command => 'disconnect', params => {} } );
-        delete( $connections{$h_name} );
-    }
-    elsif ( $data->{'command'} eq 'stop' ) {
-
-        # Stop print
-
-        my ($h_name) = keys %connections;
-        my $handler = $connections{$h_name}{'handle'};
-        $handler->push_write( json => { command => 'stop', params => {} } );
-    }
-    else {
-        #Call if command not set
-        $log->error( 'Unknown command:' . Dumper($data) );
-        $control_handle->push_write(
-            json => {
-                reply => sprintf( 'Unknown command [%s]', $data->{'command'} )
-            }
-        );
     }
 
     return;

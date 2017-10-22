@@ -1,7 +1,8 @@
-package print3r::Commands;
+package Print3r::Commands;
 
 use v5.20;
-our $VERSION = version->declare("v0.0.1");
+use warnings;
+our $VERSION = version->declare('v0.0.1');
 
 use JSON;
 use IO::Socket::INET;
@@ -12,7 +13,7 @@ our $AUTOLOAD;
 sub new {
     my $class = shift;
     my $commands = shift;
-    
+
     my $self = {
     	commands => $commands,
     };
@@ -30,7 +31,6 @@ sub AUTOLOAD {
 
 	return if $name =~ /^.*::[A-Z]+$/;
   	$name =~ s/^.*:://;   # strip fully-qualified portion
-	
 
 	return unless exists $self->{'commands'}{$name};
 	my $sub = $self->{'commands'}{$name};

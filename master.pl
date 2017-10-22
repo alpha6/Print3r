@@ -101,7 +101,7 @@ tcp_server(
 
         if ( defined($control_handle) ) {
             $log->error('Only one controll process is allowed!');
-            syswrite ($fh, "Only one controll process is allowed!\015\012");
+            syswrite( $fh, "Only one controll process is allowed!\015\012" );
             return;
         }
 
@@ -161,57 +161,64 @@ sub process_printer_command {
         ) if ($is_cli_connected);
     }
 
-    if ( $data->{'command'} eq 'connect' ) {   #Worker connection status message
+    for ( $data->{'command'} ) {
+        when ('connect') {    #Worker connection status message
 
-        $log->info(
-            sprintf(
-                'Worker [%s] is connected to [%s] at speed [%s]',
-                $data->{'pid'}, $data->{'port'}, $data->{'speed'}
-            )
-        );
+            $log->info(
+                sprintf(
+                    'Worker [%s] is connected to [%s] at speed [%s]',
+                    $data->{'pid'}, $data->{'port'}, $data->{'speed'}
+                )
+            );
 
-        #Change handler key name to port name
-        $connections{ $data->{'port'} } = {
-            handle => $handle,
-            pid    => $data->{'pid'},
-            port   => $data->{'port'},
-            speed  => $data->{'speed'}
-        };
-        delete( $connections{$handle} );
+            #Change handler key name to port name
+            $connections{ $data->{'port'} } = {
+                handle => $handle,
+                pid    => $data->{'pid'},
+                port   => $data->{'port'},
+                speed  => $data->{'speed'}
+            };
+            delete( $connections{$handle} );
 
-        #Set flag that worker connected
-        $workers{ $data->{'pid'} }{'is_connected'} = 1;
-        if ( defined $control_handle ) {
-            $control_handle->push_write(
-                json => {
-                    reply => sprintf(
-                        'Worker [%s] is connected to [%s] at speed [%s]',
-                        $data->{'pid'}, $data->{'port'}, $data->{'speed'}
-                    )
-                }
+            #Set flag that worker connected
+            $workers{ $data->{'pid'} }{'is_connected'} = 1;
+            if ( defined $control_handle ) {
+                $control_handle->push_write(
+                    json => {
+                        reply => sprintf(
+                            'Worker [%s] is connected to [%s] at speed [%s]',
+                            $data->{'pid'}, $data->{'port'},
+                            $data->{'speed'}
+                        )
+                    }
+                );
+            }
+        }
+        when ('status') {
+            $log->info(
+                sprintf(
+                    'Printer temp: %.1f@%.1f',
+                    $data->{'E0'}, $data->{'B'}
+                )
             );
         }
-    }
-    elsif ( $data->{'command'} eq 'status' ) {
-        $log->info(
-            sprintf( 'Printer temp: %.1f@%.1f', $data->{'E0'}, $data->{'B'} ) );
-    }
-    elsif ( $data->{'command'} eq 'message' ) {
-        $log->info( sprintf( 'Printer message: %s', $data->{'message'} ) );
+        when ('message') {
+            $log->info( sprintf( 'Printer message: %s', $data->{'message'} ) );
 
-        $control_handle->push_write(
-            json => {
-                reply => $data->{'line'}
-            }
-        ) if ($is_cli_connected);
-    }
-    else {
-        $log->error( sprintf( 'Printer message: %s', $data->{'line'} ) );
-        $control_handle->push_write(
-            json => {
-                reply => $data->{'line'}
-            }
-        ) if ($is_cli_connected);
+            $control_handle->push_write(
+                json => {
+                    reply => $data->{'line'}
+                }
+            ) if ($is_cli_connected);
+        }
+        default {
+            $log->error( sprintf( 'Printer message: %s', $data->{'line'} ) );
+            $control_handle->push_write(
+                json => {
+                    reply => $data->{'line'}
+                }
+            ) if ($is_cli_connected);
+        }
     }
 
     return;
@@ -233,12 +240,12 @@ sub process_command {
                 '-p=' . $data->{'port'},
                 '-s=' . $data->{'speed'}
             );
-        } catch {
+        }
+        catch {
             $log->error("Worker spawn error: $_");
             if ($is_cli_connected) {
                 $control_handle->push_write( json =>
-                    { reply => sprintf( 'Worker spawn error: %s', $_ ) }
-                );
+                      { reply => sprintf( 'Worker spawn error: %s', $_ ) } );
             }
         };
 

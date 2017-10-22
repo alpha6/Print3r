@@ -38,7 +38,7 @@ sub connect_to_printer{
 
     $self->{'printer_port'} = $port;
 
-    return 1;
+    return $port;
 }
 
 sub get_raw_handler {

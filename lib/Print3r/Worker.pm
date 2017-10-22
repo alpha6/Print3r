@@ -1,7 +1,8 @@
 package Print3r::Worker;
 
 use v5.20;
-our $VERSION = version->declare("v0.0.2");
+use warings;
+our $VERSION = version->declare('v0.0.2');
 
 use JSON;
 use AnyEvent::Handle;
@@ -27,10 +28,10 @@ sub connect_to_printer{
     say "Connecting.. [$device_port] [$port_speed]";
     my $port = Device::SerialPort->new($device_port) or croak "Can't connect to [$device_port] at speed [$port_speed]";
 
-    $port->handshake("none");
+    $port->handshake('none');
     $port->baudrate($port_speed);    # Configure this to match your device
     $port->databits(8);
-    $port->parity("none");
+    $port->parity('none');
     $port->stopbits(1);
     $port->stty_echo(0);
     $port->debug(1);
@@ -43,7 +44,7 @@ sub connect_to_printer{
 
 sub get_raw_handler {
     my $self = shift;
-    croak "Printer isn't connected" unless defined $self->{'printer_port'};
+    croak 'Printer isn\'t connected' unless defined $self->{'printer_port'};
 
     return $self->{'printer_port'}{'HANDLE'};
 }

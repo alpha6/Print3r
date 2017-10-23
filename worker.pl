@@ -3,6 +3,7 @@
 use v5.20;
 use strict;
 use warnings;
+no if $] >= 5.018, warnings => "experimental::smartmatch";
 
 use lib 'lib';
 use AnyEvent;
@@ -236,7 +237,7 @@ sub connect_to_printer {
     return;
 }
 
-my $commands = print3r::Commands->new(
+my $commands = Print3r::Commands->new(
     {
         print => sub {
             my $self   = shift;

@@ -4,7 +4,7 @@ use v5.20;
 
 use strict;
 use warnings;
-no if $] >= 5.018, warnings => "experimental::smartmatch";
+no if $] >= 5.018, warnings => 'experimental::smartmatch';
 
 use AnyEvent;
 use AnyEvent::Handle;

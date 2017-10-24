@@ -199,7 +199,28 @@ sub process_command {
 }
 
 sub connect_to_printer {
-    $port_handle = $worker->connect_to_printer( $printer_port, $port_speed );
+    try {
+        $port_handle =
+          $worker->connect_to_printer( $printer_port, $port_speed );
+    }
+    catch {
+        $handle->push_write(
+            json => {
+                command => 'connect',
+                status  => 'error',
+                message => sprintf(
+                    'Connecion to port [%s] failed. Reason [%s]',
+                    $printer_port, $_
+                ),
+                pid   => $$,
+                port  => $printer_port,
+                speed => $port_speed
+            }
+        );
+        #TODO: make workers reusable
+        sleep(1);
+        exit(1);
+    };
 
     #Creating AE::Handle for the  port of the printer
     my $fh = $port_handle->{'HANDLE'};

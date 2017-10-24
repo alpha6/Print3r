@@ -11,13 +11,10 @@ use Data::Dumper;
 our $AUTOLOAD;
 
 sub new {
-    my $class = shift;
+    my $class    = shift;
     my $commands = shift;
 
-    my $self = {
-    	commands => $commands,
-    };
-
+    my $self = { commands => $commands, };
 
     say Dumper($self);
 
@@ -26,20 +23,19 @@ sub new {
 }
 
 sub AUTOLOAD {
-	my ($self) = @_;
-	my $name = $AUTOLOAD;
+    my ($self) = @_;
+    my $name = $AUTOLOAD;
 
-	return if $name =~ /^.*::[A-Z]+$/;
-  	$name =~ s/^.*:://;   # strip fully-qualified portion
+    return if $name =~ /^.*::[A-Z]+$/;
+    $name =~ s/^.*:://;    # strip fully-qualified portion
 
-	return unless exists $self->{'commands'}{$name};
-	my $sub = $self->{'commands'}{$name};
+    return unless exists $self->{'commands'}{$name};
+    my $sub = $self->{'commands'}{$name};
 
-	no strict 'refs';
-  	*{$AUTOLOAD} = $sub;
-  	use strict 'refs';
-  	goto &{$sub};
+    no strict 'refs';
+    *{$AUTOLOAD} = $sub;
+    use strict 'refs';
+    goto &{$sub};
 }
-
 
 1;

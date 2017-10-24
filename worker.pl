@@ -136,6 +136,10 @@ sub process_command {
         }
     }
     elsif ( $command->{'type'} eq 'error' ) {
+
+        # If got error: pause print and send error message to master.
+        $is_print_paused = 1;
+
         $handle->push_write(
             json => {
                 command => 'error',

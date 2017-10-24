@@ -2,6 +2,7 @@ package Print3r::Worker;
 
 use v5.20;
 use warnings;
+no if $] >= 5.018, warnings => 'experimental::smartmatch';
 our $VERSION = version->declare('v0.0.2');
 
 use JSON;
@@ -13,20 +14,19 @@ use Carp;
 
 sub new {
     my $class = shift;
-    my $self = {
-        printer_handle => undef,
-    };
+    my $self = { printer_handle => undef, };
     bless $self, $class;
     return $self;
 }
 
-sub connect_to_printer{
-    my $self = shift;
+sub connect_to_printer {
+    my $self        = shift;
     my $device_port = shift;
-    my $port_speed = shift || 115200;
+    my $port_speed  = shift || 115200;
 
     say "Connecting.. [$device_port] [$port_speed]";
-    my $port = Device::SerialPort->new($device_port) or croak "Can't connect to [$device_port] at speed [$port_speed]";
+    my $port = Device::SerialPort->new($device_port)
+      or croak "Can't connect to [$device_port] at speed [$port_speed]";
 
     $port->handshake('none');
     $port->baudrate($port_speed);    # Configure this to match your device
@@ -54,46 +54,59 @@ sub parse_line {
     my $line = shift;
     my $type = {};
 
-    if ($line =~ /^ok T:(\d+\.\d+) \/\d+\.\d+/) {
-        $type = $self->_parse_temp_line($line);
+    for ($line) {
+        when (/^ok T:(\d+\.\d+) \/\d+\.\d+/) {
+            $type = $self->_parse_temp_line($line);
+        }
+        when (/^(ok|start)/) {
+            $type->{'type'}          = 'ready';
+            $type->{'printer_ready'} = 1;
+            $type->{'line'}          = $line;
+        }
+        when (/halt|kill|stop/i) {
+            $type->{'type'}          = 'error';
+            $type->{'printer_ready'} = 0;
+            $type->{'line'}          = $line;
+        }
+        when (/reset or M999 required/) {
+            $type->{'type'}          = 'error';
+            $type->{'printer_ready'} = 0;
+            $type->{'line'}          = $line;
+        }
+        when ('Watchdog Reset') {
+            $type->{'type'}          = 'error';
+            $type->{'printer_ready'} = 0;
+            $type->{'line'}          = $line;
+        }
+        default {
+            $type->{'type'}          = 'other';
+            $type->{'printer_ready'} = 0;
+            $type->{'line'}          = $line;
+        }
     }
-    elsif ( $line =~ /^(ok|start)/ ) {
-        # say "ready";
-        $type->{'type'} = 'ready';
-        $type->{'printer_ready'} = 1;
-        $type->{'line'} = $line;
-    }
-    elsif ($line eq 'Watchdog Reset') {
-        $type->{'type'} = 'error';
-        $type->{'printer_ready'} = 0;
-        $type->{'line'} = $line;
-    }
-    else {
-        $type->{'type'} = 'other';
-        $type->{'printer_ready'} = 0;
-        $type->{'line'} = $line;
-    }
-
     return $type;
 }
 
 sub _parse_temp_line {
-    my $self = shift;
-    my $line = shift;
+    my $self   = shift;
+    my $line   = shift;
     my $parsed = {};
 
     $parsed->{'type'} = 'temperature';
     $parsed->{'line'} = $line;
-    $parsed->{'B'} = undef; #Undefined if printer doesn't have heated bed
+    $parsed->{'B'} = undef;    #Undefined if printer doesn't have heated bed
 
-    my @line = split/\s+/, $line;
+    my @line = split /\s+/, $line;
 
     for my $item (@line) {
-        if ($item eq 'ok') {
+        if ( $item eq 'ok' ) {
             $parsed->{'printer_ready'} = 1;
-        } elsif ($item =~ /T(?<ex_num>\d+)?:(?<temp>\d+\.\d+)/) {
-            $parsed->{sprintf('E%s',$+{ex_num} || 0)} = $+{'temp'};
-        } elsif ($item =~ /B:?(\d+\.\d+)/) {
+        }
+        elsif ( $item =~ /T(?<ex_num>\d+)?:(?<temp>\d+\.\d+)/ ) {
+            $parsed->{ sprintf( 'E%s', $+{ex_num} || 0 ) } = $+{'temp'};
+        }
+        elsif ( $item =~ /B:?(\d+\.\d+)/ ) {
+
             #B\d+\.\d+ - Marlin dialect
             #B:\d+\.\d+ - Smoothieware
             $parsed->{'B'} = $1;
@@ -103,10 +116,7 @@ sub _parse_temp_line {
     return $parsed;
 }
 
-
-
 1;
-
 
 # RECV: start
 # RECV: echo: External Reset

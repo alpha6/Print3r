@@ -58,7 +58,7 @@ tcp_connect(
                 my $hdl = shift;
                 my $msg = $hdl->rbuf;
                 chomp $msg;
-                $rl->print(sprintf("Server message: %s\n", $msg));
+                $rl->print( sprintf( "Server message: %s\n", $msg ) );
                 $rl->print("Lost connecton to server.\n");
                 $hdl->destroy();
                 exit 1;

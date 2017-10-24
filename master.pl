@@ -223,7 +223,7 @@ sub process_printer_command {
             $log->info(
                 sprintf(
                     'Printer temp: %.1f@%.1f',
-                    $data->{'E0'}, $data->{'B'}
+                    $data->{'E0'}, ( $data->{'B'} || 0 )
                 )
             );
         }

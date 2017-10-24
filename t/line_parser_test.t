@@ -87,8 +87,36 @@ subtest 'parse_other' => sub {
                 line => $line,
             }, 
             $worker->parse_line($line),
-            "Check other",
+            "Check other [$line]",
         );
+};
+
+#TODO: Get all error messages from Marlin and Smoothieware
+subtest 'error_line' => sub {
+    my @lines = (
+        'Limit switch +X was hit - reset or M999 required',
+        'Temperature took too long to be reached on B, HALT asserted, TURN POWER OFF IMMEDIATELY - reset or M999 required',
+        'Errort: Printer halted. kill() called !!',
+        'Printer stopped due to errors. Fix the error and use M999 to restart. (Temperature is reset. Set it after restarting)',
+        'STOP called because of BLTouch error - restart with M999',
+        'STOP called because of unhomed error - restart with M999',
+        'KILL caused by too much inactive time - current command: ',
+        'KILL caused by KILL button/pin',
+
+    );
+    
+    for my $line (@lines) {
+        cmp_deeply( 
+            {
+                printer_ready => 0,
+                type => 'error',
+                line => $line,
+            }, 
+            $worker->parse_line($line),
+            "Catching one from error lines: [$line]",
+        );
+
+    }
 };
 
 done_testing;

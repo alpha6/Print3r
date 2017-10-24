@@ -63,12 +63,26 @@ sub parse_line {
         $type->{'printer_ready'} = 1;
         $type->{'line'} = $line;
     }
+    elsif ($line =~ /halt|kill|stop/i) {
+        say STDERR "halt line";
+        $type->{'type'} = 'error';
+        $type->{'printer_ready'} = 0;
+        $type->{'line'} = $line;
+    }
+    elsif ($line =~ /reset or M999 required/) {
+        say STDERR "M999 line";
+        $type->{'type'} = 'error';
+        $type->{'printer_ready'} = 0;
+        $type->{'line'} = $line;
+    }
     elsif ($line eq 'Watchdog Reset') {
+        say STDERR "WD line";
         $type->{'type'} = 'error';
         $type->{'printer_ready'} = 0;
         $type->{'line'} = $line;
     }
     else {
+        say STDERR "other line";
         $type->{'type'} = 'other';
         $type->{'printer_ready'} = 0;
         $type->{'line'} = $line;

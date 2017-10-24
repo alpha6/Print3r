@@ -2,6 +2,7 @@ package Print3r::Worker;
 
 use v5.20;
 use warnings;
+no if $] >= 5.018, warnings => 'experimental::smartmatch';
 our $VERSION = version->declare('v0.0.2');
 
 use JSON;
@@ -54,40 +55,36 @@ sub parse_line {
     my $line = shift;
     my $type = {};
 
-    if ($line =~ /^ok T:(\d+\.\d+) \/\d+\.\d+/) {
+for ($line) {
+    when (/^ok T:(\d+\.\d+) \/\d+\.\d+/) {
         $type = $self->_parse_temp_line($line);
     }
-    elsif ( $line =~ /^(ok|start)/ ) {
-        # say "ready";
+    when ( /^(ok|start)/ ) {
         $type->{'type'} = 'ready';
         $type->{'printer_ready'} = 1;
         $type->{'line'} = $line;
     }
-    elsif ($line =~ /halt|kill|stop/i) {
-        say STDERR "halt line";
+    when ( /halt|kill|stop/i) {
         $type->{'type'} = 'error';
         $type->{'printer_ready'} = 0;
         $type->{'line'} = $line;
     }
-    elsif ($line =~ /reset or M999 required/) {
-        say STDERR "M999 line";
+    when (/reset or M999 required/) {
         $type->{'type'} = 'error';
         $type->{'printer_ready'} = 0;
         $type->{'line'} = $line;
     }
-    elsif ($line eq 'Watchdog Reset') {
-        say STDERR "WD line";
+    when ('Watchdog Reset') {
         $type->{'type'} = 'error';
         $type->{'printer_ready'} = 0;
         $type->{'line'} = $line;
     }
-    else {
-        say STDERR "other line";
+    default {
         $type->{'type'} = 'other';
         $type->{'printer_ready'} = 0;
         $type->{'line'} = $line;
     }
-
+}
     return $type;
 }
 

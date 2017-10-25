@@ -143,7 +143,8 @@ sub process_command {
         $handle->push_write(
             json => {
                 command => 'error',
-                line => sprintf( 'Print emergency stopped!. Priner message: %d',
+                line =>
+                  sprintf( 'Print emergency stopped!. Printer message: %d',
                     $command->{'line'} ),
             }
         );
@@ -199,7 +200,28 @@ sub process_command {
 }
 
 sub connect_to_printer {
-    $port_handle = $worker->connect_to_printer( $printer_port, $port_speed );
+    try {
+        $port_handle =
+          $worker->connect_to_printer( $printer_port, $port_speed );
+    }
+    catch {
+        $handle->push_write(
+            json => {
+                command => 'connect',
+                status  => 'error',
+                message => sprintf(
+                    'Connecion to port [%s] failed. Reason [%s]',
+                    $printer_port, $_
+                ),
+                pid   => $$,
+                port  => $printer_port,
+                speed => $port_speed
+            }
+        );
+
+        #TODO: make workers reusable
+        shutdown_worker(1);
+    };
 
     #Creating AE::Handle for the  port of the printer
     my $fh = $port_handle->{'HANDLE'};
@@ -212,6 +234,8 @@ sub connect_to_printer {
             print STDERR "$fatal : $message\n";
             $handle->push_write(
                 json => { command => 'error', message => $message } );
+
+            shutdown_worker(1);
         },
         on_read => sub {
             my $p_hdl = shift;
@@ -335,3 +359,9 @@ tcp_connect(
 );
 
 $cv->recv;
+
+sub shutdown_worker {
+    my $status = shift || 0;
+    sleep(1);
+    exit $status;
+}

@@ -58,7 +58,7 @@ tcp_server(
     sub {
         my ( $fh, $clienthost, $clientport ) = @_;
 
-        $log->info("Connected... [$clienthost][$clientport]\n");
+        $log->info("Worker connected... [$clienthost][$clientport]\n");
 
         my $handle;
         $handle = AnyEvent::Handle->new(
@@ -79,11 +79,13 @@ tcp_server(
             on_eof => sub {
                 my ($hdl) = @_;
                 say 'Client disconnected';
+                delete $connections{$hdl};
                 $hdl->destroy();
             },
             on_error => sub {
                 my $hdl = shift;
                 say 'Lost connecton to client.';
+                delete $connections{$hdl};
                 $hdl->destroy();
             },
         );
@@ -165,6 +167,28 @@ sub process_printer_command {
     for ( $data->{'command'} ) {
         when ('connect') {    #Worker connection status message
 
+            if ( $data->{'status'} eq 'error' ) {
+                $log->info(
+                    sprintf(
+                        'Connection failed! [%s] to [%s] at speed [%s]',
+                        $data->{'pid'}, $data->{'port'}, $data->{'speed'}
+                    )
+                );
+
+                if ( defined $control_handle ) {
+                    $control_handle->push_write(
+                        json => {
+                            reply => sprintf(
+                                'Connection failed! [%s] to [%s] at speed [%s]',
+                                $data->{'pid'}, $data->{'port'},
+                                $data->{'speed'}
+                            )
+                        }
+                    );
+                }
+                return;
+            }
+
             $log->info(
                 sprintf(
                     'Worker [%s] is connected to [%s] at speed [%s]',
@@ -199,7 +223,7 @@ sub process_printer_command {
             $log->info(
                 sprintf(
                     'Printer temp: %.1f@%.1f',
-                    $data->{'E0'}, $data->{'B'}
+                    $data->{'E0'}, ( $data->{'B'} || 0 )
                 )
             );
         }
@@ -246,8 +270,10 @@ sub process_command {
             catch {
                 $log->error("Worker spawn error: $_");
                 if ($is_cli_connected) {
-                    $control_handle->push_write( json =>
-                          { reply => sprintf( 'Worker spawn error: %s', $_ ) }
+                    $control_handle->push_write(
+                        json => {
+                            reply => sprintf( 'Worker spawn error: %s', $_ )
+                        }
                     );
                 }
             };
@@ -314,8 +340,11 @@ sub process_command {
 
             my ($h_name) = keys %connections;
             my $handler = $connections{$h_name}{'handle'};
-            $handler->push_write( json =>
-                  { command => 'print', params => { file => $data->{'file'} } }
+            $handler->push_write(
+                json => {
+                    command => 'print',
+                    params  => { file => $data->{'file'} }
+                }
             );
         }
         when ('pause') {

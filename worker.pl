@@ -32,9 +32,13 @@ my $printing_file  = undef;
 my $port_handle    = undef;
 my %timers;
 
+my $print_file_path = undef;
+
 my $in_command_flag  = 0;
 my $is_printer_ready = 1;
 my $is_print_paused  = 0;
+
+my $line_number = 0;    #current printing line
 
 my $printer_port = '/dev/ttyUSB0';
 my $port_speed   = 115200;
@@ -47,12 +51,19 @@ GetOptions(
 my $worker = Print3r::Worker->new();
 
 sub get_line {
-    state $line_number = 0;
+    my $start_line = shift || 0;
+    $log->debug("Start line is [$start_line]");
+
     while ( my $line = <$printing_file> ) {
+        $line_number++;
+        
+        if ($line_number < $start_line) {
+            next;
+        }
+
         if ( $line =~ m/^[G|M|T].*/ ) {
             chomp $line;
             $log->debug( sprintf( "line [%s]\n", $line ) );
-            $line_number++;
             return $line;
         }
     }
@@ -96,7 +107,8 @@ sub process_command {
 
     if ( $command->{'type'} eq 'start_printing' ) {
         try {
-            if ( my $next_command = get_line() ) {
+            $line_number = 0;
+            if ( my $next_command = get_line($command->{'start_line'} || 0) ) {
                 $port_handle->write("$next_command\n");
             }
             else {
@@ -273,6 +285,9 @@ my $commands = Print3r::Commands->new(
             $log->info(
                 sprintf( 'Starting print. File: %s', $params->{'file'} ) );
             open( $printing_file, '<', $params->{'file'} ) or die $!;
+
+            $print_file_path = $params->{'file'};
+
             process_command( { type => 'start_printing' } );
         },
         send => sub {
@@ -283,15 +298,46 @@ my $commands = Print3r::Commands->new(
         },
         disconnect => sub {
             $log->info('Disconnecting...');
-            $port_handle->close();
-            $handle->destroy();
-            exit 0;
+            shutdown_worker(0);
         },
         pause => sub {
             process_command( { type => 'pause' } );
         },
         resume => sub {
             process_command( { type => 'resume' } );
+        },
+        recover => sub {    #Recover printing if worker(or printer) died
+            my $self   = shift;
+            my $params = shift;
+            $log->info(
+                sprintf( 'Recovering print. File: %s', $params->{'file'} ) );
+
+            my $start_line = 0;
+            try {
+                open( my $rec_fh, '<',
+                    sprintf( '%s.RECOVER', $params->{'file'} ) );
+
+                $start_line = <$rec_fh>;
+                chomp $start_line;
+
+                unlink sprintf( '%s.RECOVER', $params->{'file'} );
+
+            }
+            catch {
+                $log->error(
+                    sprintf( 'can not open RECOVER file for file: %s',
+                        $params->{'file'} )
+                );
+                $log->error( sprintf('Recovering aborted') );
+                return;
+            };
+
+            open( $printing_file, '<', $params->{'file'} ) or die $!;
+
+            $print_file_path = $params->{'file'};
+
+            process_command(
+                { type => 'start_printing', start_line => $start_line } );
         },
         stop => sub {
             $log->info('Stopping print...');
@@ -362,6 +408,22 @@ $cv->recv;
 
 sub shutdown_worker {
     my $status = shift || 0;
-    sleep(1);
+    try {
+        if ( defined $port_handle ) {
+            $port_handle->close();
+        }
+    }
+    catch {
+        $log->error("Port handle already destroyed!");
+    };
+
+    try {
+        open( my $fh, '>', sprintf( '%s.RECOVER', $print_file_path ) )
+          or die $!;
+        print $fh $line_number;
+        close $fh;
+    };
+
+    $handle->destroy();
     exit $status;
 }

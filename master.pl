@@ -365,6 +365,19 @@ sub process_command {
             $handler->push_write(
                 json => { command => 'resume', params => {} } );
         }
+        when ('recover') {
+
+            # Recover printing
+
+            my ($h_name) = keys %connections;
+            my $handler = $connections{$h_name}{'handle'};
+            $handler->push_write(
+                json => {
+                    command => 'recover',
+                    params  => { file => $data->{'file'} }
+                }
+            );
+        }
         when ('disconnect') {
 
             # Drop print and stop worker

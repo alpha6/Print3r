@@ -56,8 +56,8 @@ sub get_line {
 
     while ( my $line = <$printing_file> ) {
         $line_number++;
-        
-        if ($line_number < $start_line) {
+
+        if ( $line_number < $start_line ) {
             next;
         }
 
@@ -108,7 +108,8 @@ sub process_command {
     if ( $command->{'type'} eq 'start_printing' ) {
         try {
             $line_number = 0;
-            if ( my $next_command = get_line($command->{'start_line'} || 0) ) {
+            if ( my $next_command = get_line( $command->{'start_line'} || 0 ) )
+            {
                 $port_handle->write("$next_command\n");
             }
             else {
@@ -320,7 +321,7 @@ my $commands = Print3r::Commands->new(
                 $start_line = <$rec_fh>;
                 chomp $start_line;
                 close $rec_fh;
-                
+
                 unlink sprintf( '%s.RECOVER', $params->{'file'} );
 
             }
@@ -415,7 +416,7 @@ sub shutdown_worker {
         }
     }
     catch {
-        $log->error("Port handle already destroyed!");
+        $log->error('Port handle already destroyed!');
     };
 
     try {

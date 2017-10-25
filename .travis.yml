@@ -6,6 +6,7 @@ language: perl
 perl:
   - "5.20"
 before_install:
+  - eval $(curl https://travis-perl.github.io/init) --auto
   - sudo apt-get -qq update
   - sudo apt-get install -y libreadline-dev
 script:

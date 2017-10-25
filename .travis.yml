@@ -12,4 +12,4 @@ before_install:
 install:
   - cpanm -n -q --with-recommends --skip-satisfied --installdeps .
 script:
-  - cover -make "prove ./t" -report kritika
+  - mkdir cover_db && cover -make "prove ./t" -report kritika

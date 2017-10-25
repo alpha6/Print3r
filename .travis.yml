@@ -8,5 +8,6 @@ perl:
 before_install:
   - sudo apt-get -qq update
   - sudo apt-get install -y libreadline-dev
+  - cpanm -n https://github.com/kritikaio/devel-cover-report-kritika-perl/archive/master.tar.gz
 script:
-  - prove -r t
+  - prove -r t && cover -test -report kritika

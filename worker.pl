@@ -319,7 +319,8 @@ my $commands = Print3r::Commands->new(
 
                 $start_line = <$rec_fh>;
                 chomp $start_line;
-
+                close $rec_fh;
+                
                 unlink sprintf( '%s.RECOVER', $params->{'file'} );
 
             }

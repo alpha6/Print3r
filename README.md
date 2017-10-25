@@ -1,6 +1,7 @@
 Yet another 3d-printer control tool.
 
 TravisCI: [![Build Status](https://travis-ci.org/alpha6/Print3r.svg?branch=master)](https://travis-ci.org/alpha6/Print3r)
+kritika.io: [![Kritika Analysis Status](https://kritika.io/users/alpha6/repos/1636900371975369/heads/master/status.svg)](https://kritika.io/users/alpha6/repos/1636900371975369/heads/master/)
 
 The early prototype!
 

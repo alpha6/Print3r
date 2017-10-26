@@ -59,6 +59,6 @@ sub _log {
     $self->_print($text);
 }
 
-sub _print { croak 'Not implemented!'' }
+sub _print { croak 'Not implemented!' }
 
 1;

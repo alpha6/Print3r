@@ -3,6 +3,8 @@ package Print3r::Logger::LoggerFILE;
 use strict;
 use warnings;
 
+use Data::Dumper;
+
 use base 'Print3r::Logger::LoggerBase';
 
 sub new {
@@ -11,6 +13,11 @@ sub new {
 
     $self->{file} = $params{file};
 
+    open my $fh, '>>', $params{file} or die $!;
+    $self->{fh} = $fh;
+
+    # print STDERR Dumper($self);
+
     return $self;
 }
 
@@ -18,9 +25,13 @@ sub _print {
     my $self = shift;
     my ($message) = @_;
 
-    open my $fh, '>>', $self->{file} or die $!;
-    print $fh $message;
-    close $fh;
+    # print STDERR Dumper($self);
+    my $fh = $self->{fh};
+    print $fh $message;    
 }
 
+
+sub DESTROY {
+    close shift->{'fh'};
+}
 1;

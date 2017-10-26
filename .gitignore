@@ -1,0 +1,6 @@
+.vtags
+*.bak
+*.iml
+
+cover_db/*
+logs/*

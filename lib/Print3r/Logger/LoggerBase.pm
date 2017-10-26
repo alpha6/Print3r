@@ -54,11 +54,11 @@ sub _log {
 
     my $time = Time::Piece->new->strftime('%Y-%m-%d %T');
 
-    my $text = join '', $time, " [$level] ", $message, "\n";
+    my $text = sprintf("%s [%s] %s\n", $time, $level, $message);
 
     $self->_print($text);
 }
 
-sub _print { croak "Not implemented!" }
+sub _print { croak 'Not implemented!'' }
 
 1;

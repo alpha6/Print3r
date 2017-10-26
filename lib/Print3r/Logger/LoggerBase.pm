@@ -41,16 +41,16 @@ sub level {
     return $self->{level} || 'error';
 }
 
-sub info { shift->_log('info', @_) }
-sub error { shift->_log('error', @_) }
-sub warn  { shift->_log('warn',  @_) }
-sub debug { shift->_log('debug', @_) }
+sub info  { shift->_log( 'info',  @_ ) }
+sub error { shift->_log( 'error', @_ ) }
+sub warn  { shift->_log( 'warn',  @_ ) }
+sub debug { shift->_log( 'debug', @_ ) }
 
 sub _log {
     my $self = shift;
-    my ($level, $message) = @_;
+    my ( $level, $message ) = @_;
 
-    return unless $LEVELS->{$level} <= $LEVELS->{$self->level};
+    return unless $LEVELS->{$level} <= $LEVELS->{ $self->level };
 
     my $time = Time::Piece->new->strftime('%Y-%m-%d %T');
 

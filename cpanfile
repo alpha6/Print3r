@@ -9,6 +9,7 @@ requires 'Getopt::Long';
 requires 'AnyEvent::ReadLine::Gnu';
 requires 'Device::SerialPort';
 requires 'Carp';
+requires 'Time::Moment';
 
 on test => sub {
     requires 'Test::More';

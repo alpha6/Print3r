@@ -36,7 +36,7 @@ sub set_level {
 
     $self->{'level'} = $new_level;
 
-    return $self->{'level'};
+    return;
 }
 
 sub level {
@@ -59,11 +59,10 @@ sub _log {
 
     my $time = Time::Moment->now->strftime('%Y-%m-%d %T%3f');
 
-    for (split /\n/, $message) {
-        my $text = sprintf("%s [%s] %s\n", $time, $level, $_);
+    my $text = sprintf("%s [%s] %s\n", $time, $level, $message);
 
-        $self->_print($text);
-    }
+    $self->_print($text);
+
 
     return;
 }

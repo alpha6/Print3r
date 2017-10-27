@@ -114,8 +114,8 @@ sub process_command {
         try {
             $plog = get_printing_logger();
             if ( my $next_command = get_line() ) {
-                $port_handle->write("$next_command\n");
                 $plog->info('sent: '.$next_command);
+                $port_handle->write("$next_command\n");
             }
             else {
                 $handle->push_write(
@@ -221,7 +221,7 @@ sub process_command {
         );
     }
     else {
-        $plog->info('other: '.$command->{'line'}) if (defined $plog);
+        #$plog->info('other: '.$command->{'line'}) if (defined $plog);
         $handle->push_write(
             json => {
                 command => 'other',
@@ -351,7 +351,7 @@ my $test_timer = AnyEvent->timer(
         # say sprintf("Alive %s", time());
         if ( defined $port_handle ) {
             if ( !$in_command_flag ) {
-                $port_handle->write("M105\n");
+                #$port_handle->write("M105\n");
             }
         }
     }

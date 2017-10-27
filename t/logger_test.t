@@ -56,7 +56,9 @@ subtest 'logs when level is higher' => sub {
     my $levels = {
         error => [qw/error/],
         warn  => [qw/error warn/],
-        debug => [qw/error warn debug/],
+        info  => [qw/error warn info/],
+        debug => [qw/error warn info debug/],
+        trace => [qw/error warn info debug trace/],
     };
 
     for my $level (keys %$levels) {

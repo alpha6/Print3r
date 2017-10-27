@@ -49,6 +49,7 @@ sub info  { return shift->_log( 'info',  @_ ) }
 sub error { return shift->_log( 'error', @_ ) }
 sub warn  { return shift->_log( 'warn',  @_ ) }
 sub debug { return shift->_log( 'debug', @_ ) }
+sub trace { return shift->_log( 'trace', @_ ) }
 
 sub _log {
     my $self = shift;

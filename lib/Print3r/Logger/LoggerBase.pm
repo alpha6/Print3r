@@ -10,7 +10,8 @@ use Time::Piece;
 my $LEVELS = {
     error => 1,
     warn  => 2,
-    debug => 3
+    info  => 3,
+    debug => 4
 };
 
 sub new {

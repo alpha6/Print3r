@@ -26,6 +26,19 @@ subtest 'prints to file' => sub {
     }
 };
 
+subtest 'prints to file synced' => sub {
+    my $file = File::Temp->new;
+    my $log = _build_logger(file => $file->filename, synced => 1);
+
+    for my $level (qw/error warn debug/) {
+        $log->$level('message');
+
+        my $content = _slurp($file);
+
+        ok $content;
+    }
+};
+
 subtest 'prints to stderr with \n' => sub {
     for my $level (qw/error warn debug/) {
     

@@ -2,6 +2,7 @@ package Print3r::Logger::LoggerFILE;
 
 use strict;
 use warnings;
+use IO::Handle;
 
 use base 'Print3r::Logger::LoggerBase';
 
@@ -12,6 +13,10 @@ sub new {
     $self->{file} = $params{file};
 
     open my $fh, '>>', $params{file} or die $!;
+    if (defined $params{'synced'}) {
+        $fh->autoflush;
+    }
+    
     $self->{fh} = $fh;
 
     return $self;

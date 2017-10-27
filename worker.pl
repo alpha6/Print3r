@@ -71,7 +71,8 @@ sub get_printing_logger {
     my $date = $tm->strftime('%F_%H.%M');
 
     my $log_file = sprintf( '%s_%s.log', $filename, $date );
-    return Print3r::Logger->get_logger( 'file', file => $log_file );
+    my $logger = Print3r::Logger->get_logger( 'file', file => $log_file, synced => 1 );
+    $logger->set_level('debug');
 }
 
 sub set_heartbeat {

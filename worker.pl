@@ -55,7 +55,7 @@ sub get_line {
     while ( my $line = <$printing_file> ) {
         if ( $line =~ m/^[G|M|T].*/ ) {
             chomp $line;
-            $plog->debug( sprintf( "read [%s]", $line ) );
+            $plog->debug( sprintf( 'read [%s]', $line ) );
             $line_number++;
             return $line;
         }
@@ -221,7 +221,7 @@ sub process_command {
         );
     }
     else {
-        $plog->info("other: ".$command->{'line'}) if (defined $plog);
+        $plog->info('other: '.$command->{'line'}) if (defined $plog);
         $handle->push_write(
             json => {
                 command => 'other',
@@ -277,7 +277,7 @@ sub connect_to_printer {
                 line => sub {
                     my ( undef, $line ) = @_;
                     my $parsed_reply = $worker->parse_line($line);
-                    $plog->debug("read: ".$parsed_reply->{'line'}) if (defined $plog);
+                    $plog->debug('read: '.$parsed_reply->{'line'}) if (defined $plog);
                     process_command($parsed_reply);
                 }
             );

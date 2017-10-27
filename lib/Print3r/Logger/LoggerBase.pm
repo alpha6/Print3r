@@ -42,10 +42,10 @@ sub level {
     return $self->{level} || 'error';
 }
 
-sub info  { shift->_log( 'info',  @_ ) }
-sub error { shift->_log( 'error', @_ ) }
-sub warn  { shift->_log( 'warn',  @_ ) }
-sub debug { shift->_log( 'debug', @_ ) }
+sub info  { return shift->_log( 'info',  @_ ) }
+sub error { return shift->_log( 'error', @_ ) }
+sub warn  { return shift->_log( 'warn',  @_ ) }
+sub debug { return shift->_log( 'debug', @_ ) }
 
 sub _log {
     my $self = shift;
@@ -53,14 +53,14 @@ sub _log {
 
     return unless $LEVELS->{$level} <= $LEVELS->{ $self->level };
 
-    my $time = Time::Moment->now->strftime('%Y-%m-%d %T');
+    my $time = Time::Moment->now->strftime('%Y-%m-%d %T.%3f');
 
     for (split /\n/, $message) {
         my $text = sprintf("%s [%s] %s\n", $time, $level, $_);
 
         $self->_print($text);
     }
-    
+
 }
 
 sub _print { croak 'Not implemented!' }

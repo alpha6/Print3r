@@ -67,8 +67,7 @@ sub get_line {
 sub get_printing_logger {
     my $filename = fileparse( $print_file_path, qr/\.[^.]*/ );
 
-    my $tm   = Time::Moment->now;
-    my $date = $tm->strftime('%F_%H.%M');
+    my $date = Time::Moment->now->strftime('%F_%H.%M');
 
     my $log_file = sprintf( '%s_%s.log', $filename, $date );
     my $logger = Print3r::Logger->get_logger( 'file', file => $log_file, synced => 1 );

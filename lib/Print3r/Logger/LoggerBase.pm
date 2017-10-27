@@ -5,7 +5,7 @@ use warnings;
 
 use Carp qw(croak);
 use List::Util qw(first);
-use Time::Piece;
+use Time::Moment;
 
 my $LEVELS = {
     error => 1,
@@ -53,7 +53,7 @@ sub _log {
 
     return unless $LEVELS->{$level} <= $LEVELS->{ $self->level };
 
-    my $time = Time::Piece->new->strftime('%Y-%m-%d %T');
+    my $time = Time::Moment->now->strftime('%Y-%m-%d %T');
 
     my $text = sprintf("%s [%s] %s\n", $time, $level, $message);
 

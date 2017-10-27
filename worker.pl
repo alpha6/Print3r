@@ -55,7 +55,7 @@ sub get_line {
     while ( my $line = <$printing_file> ) {
         if ( $line =~ m/^[G|M|T].*/ ) {
             chomp $line;
-            $plog->debug( sprintf( 'read [%s]', $line ) );
+            $plog->trace( sprintf( 'read [%s]', $line ) );
             $line_number++;
             return $line;
         }
@@ -136,11 +136,11 @@ sub process_command {
     elsif ( !$is_print_paused && $command->{'printer_ready'} ) {
         if ( defined($printing_file) && $is_printer_ready ) {
             my $next_command = get_line();
-            $plog->info('sent: '.$next_command);
 
             try {
                 #The function get_line return number only if print ended
                 if ( $next_command !~ /^\d+$/ ) {
+                    $plog->info('sent: '.$next_command);
                     $port_handle->write("$next_command\n");
                 }
                 else {

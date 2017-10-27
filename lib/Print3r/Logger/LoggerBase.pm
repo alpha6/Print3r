@@ -11,7 +11,8 @@ my $LEVELS = {
     error => 1,
     warn  => 2,
     info  => 3,
-    debug => 4
+    debug => 4,
+    trace => 5
 };
 
 sub new {

@@ -33,7 +33,7 @@ sub set_level {
     croak('Unknown log level')
       unless first { $new_level eq $_ } keys %$LEVELS;
 
-    $self->{level} = $new_level;
+    $self->{'level'} = $new_level;
 
     return $self->{'level'};
 }
@@ -53,7 +53,7 @@ sub _log {
     my $self = shift;
     my ( $level, $message ) = @_;
 
-    return unless $LEVELS->{$level} <= $LEVELS->{ $self->level };
+    return if $LEVELS->{$level} > $LEVELS->{ $self->{'level'} };
 
     my $time = Time::Moment->now->strftime('%Y-%m-%d %T%3f');
 

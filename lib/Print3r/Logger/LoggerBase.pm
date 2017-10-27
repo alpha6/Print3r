@@ -55,9 +55,12 @@ sub _log {
 
     my $time = Time::Moment->now->strftime('%Y-%m-%d %T');
 
-    my $text = sprintf("%s [%s] %s\n", $time, $level, $message);
+    for (split /\n/, $message) {
+        my $text = sprintf("%s [%s] %s\n", $time, $level, $_);
 
-    $self->_print($text);
+        $self->_print($text);
+    }
+    
 }
 
 sub _print { croak 'Not implemented!' }

@@ -55,7 +55,7 @@ sub get_line {
     while ( my $line = <$printing_file> ) {
         if ( $line =~ m/^[G|M|T].*/ ) {
             chomp $line;
-            $plog->debug( sprintf( "line [%s]\n", $line ) );
+            $plog->debug( sprintf( "read [%s]", $line ) );
             $line_number++;
             return $line;
         }
@@ -115,7 +115,7 @@ sub process_command {
             $plog = get_printing_logger();
             if ( my $next_command = get_line() ) {
                 $port_handle->write("$next_command\n");
-                $plog->info($next_command);
+                $plog->info('sent: '.$next_command);
             }
             else {
                 $handle->push_write(
@@ -136,7 +136,7 @@ sub process_command {
     elsif ( !$is_print_paused && $command->{'printer_ready'} ) {
         if ( defined($printing_file) && $is_printer_ready ) {
             my $next_command = get_line();
-            $plog->info($next_command);
+            $plog->info('sent: '.$next_command);
 
             try {
                 #The function get_line return number only if print ended
@@ -221,6 +221,7 @@ sub process_command {
         );
     }
     else {
+        $plog->info("other: ".$command->{'line'}) if (defined $plog);
         $handle->push_write(
             json => {
                 command => 'other',
@@ -276,6 +277,7 @@ sub connect_to_printer {
                 line => sub {
                     my ( undef, $line ) = @_;
                     my $parsed_reply = $worker->parse_line($line);
+                    $plog->debug("read: ".$parsed_reply->{'line'}) if (defined $plog);
                     process_command($parsed_reply);
                 }
             );

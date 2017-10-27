@@ -45,7 +45,7 @@ subtest 'prints formatted line' => sub {
         $log->$level('message');
 
         like $output->[-1],
-          qr/\d\d\d\d-\d\d-\d\d \d\d:\d\d:\d\d \[$level\] message/;
+          qr/\d\d\d\d-\d\d-\d\d \d\d:\d\d:\d\d.\d{3} \[$level\] message/;
     }
 };
 

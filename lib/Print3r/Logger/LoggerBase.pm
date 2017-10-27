@@ -34,6 +34,8 @@ sub set_level {
       unless first { $new_level eq $_ } keys %$LEVELS;
 
     $self->{level} = $new_level;
+
+    return $self->{'level'};
 }
 
 sub level {
@@ -53,7 +55,7 @@ sub _log {
 
     return unless $LEVELS->{$level} <= $LEVELS->{ $self->level };
 
-    my $time = Time::Moment->now->strftime('%Y-%m-%d %T.%3f');
+    my $time = Time::Moment->now->strftime('%Y-%m-%d %T%3f');
 
     for (split /\n/, $message) {
         my $text = sprintf("%s [%s] %s\n", $time, $level, $_);
@@ -61,6 +63,7 @@ sub _log {
         $self->_print($text);
     }
 
+    return;
 }
 
 sub _print { croak 'Not implemented!' }

@@ -16,7 +16,7 @@ sub new {
     if (defined $params{'synced'}) {
         $fh->autoflush;
     }
-    
+
     $self->{fh} = $fh;
 
     return $self;

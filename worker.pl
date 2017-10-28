@@ -10,27 +10,31 @@ use AnyEvent;
 use AnyEvent::Handle;
 use AnyEvent::Socket;
 
-use Try::Tiny;
+use File::Basename;
+use Time::Moment;
 
-use Log::Log4perl;
+use Try::Tiny;
 
 use Getopt::Long;
 
 use Print3r::Commands;
 use Print3r::Worker;
+use Print3r::Logger;
 
 use Data::Dumper;
 
 my $cv = AE::cv;
 
-Log::Log4perl::init('log4perl.conf');
-my $log = Log::Log4perl->get_logger('default');
+my $log = Print3r::Logger->get_logger( 'file', file => 'worker.log' );
+my $plog = undef;    # printing logger
 
 my $handle;
 my $printer_handle = undef;
 my $printing_file  = undef;
 my $port_handle    = undef;
 my %timers;
+
+my $print_file_path = undef;
 
 my $in_command_flag  = 0;
 my $is_printer_ready = 1;
@@ -51,13 +55,25 @@ sub get_line {
     while ( my $line = <$printing_file> ) {
         if ( $line =~ m/^[G|M|T].*/ ) {
             chomp $line;
-            $log->debug( sprintf( "line [%s]\n", $line ) );
+            $plog->trace( sprintf( 'read [%s]', $line ) );
             $line_number++;
             return $line;
         }
     }
 
     return $line_number;
+}
+
+sub get_printing_logger {
+    my $filename = fileparse( $print_file_path, qr/\.[^.]*/ );
+
+    my $date = Time::Moment->now->strftime('%F_%H.%M');
+
+    my $log_file = sprintf( '%s_%s.log', $filename, $date );
+    my $logger = Print3r::Logger->get_logger( 'file', file => $log_file, synced => 1 );
+    $logger->set_level('debug');
+
+    return $logger;
 }
 
 sub set_heartbeat {
@@ -96,7 +112,9 @@ sub process_command {
 
     if ( $command->{'type'} eq 'start_printing' ) {
         try {
+            $plog = get_printing_logger();
             if ( my $next_command = get_line() ) {
+                $plog->info('sent: '.$next_command);
                 $port_handle->write("$next_command\n");
             }
             else {
@@ -107,6 +125,7 @@ sub process_command {
                     }
                 );
             }
+
         }
         catch {
             $handle->push_write( json =>
@@ -118,21 +137,32 @@ sub process_command {
         if ( defined($printing_file) && $is_printer_ready ) {
             my $next_command = get_line();
 
-            #The function get_line return number only if print ended
-            if ( $next_command !~ /^\d+$/ ) {
-                $port_handle->write("$next_command\n");
+            try {
+                #The function get_line return number only if print ended
+                if ( $next_command !~ /^\d+$/ ) {
+                    $plog->info('sent: '.$next_command);
+                    $port_handle->write("$next_command\n");
+                }
+                else {
+                    $handle->push_write(
+                        json => {
+                            command => 'message',
+                            line =>
+                              sprintf(
+                                'Printing has ended. Printed [%d] lines.',
+                                $next_command ),
+                        }
+                    );
+                    undef $printing_file;
+                }
             }
-            else {
-                $handle->push_write(
-                    json => {
-                        command => 'message',
-                        line =>
-                          sprintf( 'Printing has ended. Printed [%d] lines.',
-                            $next_command ),
-                    }
-                );
-                undef $printing_file;
-            }
+            catch {
+                $plog->error( sprintf( 'Printing error: %s', $_ ) );
+                $is_print_paused = 1;
+                $handle->push_write( json =>
+                      { command => 'error', message => "Printing error: $_" } );
+            };
+
         }
     }
     elsif ( $command->{'type'} eq 'error' ) {
@@ -153,6 +183,7 @@ sub process_command {
         $is_print_paused = 1;
 
         $log->info('Printing has paused.');
+        $plog->warn('Printing has paused.');
         $handle->push_write(
             json => {
                 command => 'message',
@@ -164,6 +195,7 @@ sub process_command {
         $is_print_paused = 0;
 
         $log->info('Printing has resumed.');
+        $plog->warn('Printing has resumed.');
         $handle->push_write(
             json => {
                 command => 'message',
@@ -176,6 +208,7 @@ sub process_command {
     }
     elsif ( $command->{'type'} eq 'stop' ) {
         $log->info('Print stopped.');
+        $plog->warn('Print stopped.');
 
         $is_printer_ready = 0;
         undef($printing_file);
@@ -188,6 +221,7 @@ sub process_command {
         );
     }
     else {
+        #$plog->info('other: '.$command->{'line'}) if (defined $plog);
         $handle->push_write(
             json => {
                 command => 'other',
@@ -243,6 +277,7 @@ sub connect_to_printer {
                 line => sub {
                     my ( undef, $line ) = @_;
                     my $parsed_reply = $worker->parse_line($line);
+                    $plog->debug('read: '.$parsed_reply->{'line'}) if (defined $plog);
                     process_command($parsed_reply);
                 }
             );
@@ -273,6 +308,9 @@ my $commands = Print3r::Commands->new(
             $log->info(
                 sprintf( 'Starting print. File: %s', $params->{'file'} ) );
             open( $printing_file, '<', $params->{'file'} ) or die $!;
+
+            $print_file_path = $params->{'file'};
+
             process_command( { type => 'start_printing' } );
         },
         send => sub {
@@ -313,7 +351,7 @@ my $test_timer = AnyEvent->timer(
         # say sprintf("Alive %s", time());
         if ( defined $port_handle ) {
             if ( !$in_command_flag ) {
-                $port_handle->write("M105\n");
+                #$port_handle->write("M105\n");
             }
         }
     }

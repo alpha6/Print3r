@@ -50,7 +50,8 @@ GetOptions(
     's=i' => \$port_speed
 );
 
-my $worker = Print3r::Worker->new();
+# my $worker = Print3r::Worker->new();
+my $worker = undef;
 
 sub get_line {
     my $start_line = shift || 0;
@@ -248,8 +249,7 @@ sub process_command {
 
 sub connect_to_printer {
     try {
-        $port_handle =
-          $worker->connect_to_printer( $printer_port, $port_speed );
+        $worker = Print3r::Worker->connect( $printer_port, $port_speed, &process_command());
     }
     catch {
         $handle->push_write(
@@ -271,31 +271,8 @@ sub connect_to_printer {
     };
 
     #Creating AE::Handle for the  port of the printer
-    my $fh = $port_handle->{'HANDLE'};
-    $printer_handle = AnyEvent::Handle->new(
-        fh       => $fh,
-        on_error => sub {
-            my ( undef, $fatal, $message ) = @_;
-            $printer_handle->destroy;
-            undef $printer_handle;
-            print STDERR "$fatal : $message\n";
-            $handle->push_write(
-                json => { command => 'error', message => $message } );
-
-            shutdown_worker(1);
-        },
-        on_read => sub {
-            my $p_hdl = shift;
-            $p_hdl->push_read(
-                line => sub {
-                    my ( undef, $line ) = @_;
-                    my $parsed_reply = $worker->parse_line($line);
-                    $plog->debug('read: '.$parsed_reply->{'line'}) if (defined $plog);
-                    process_command($parsed_reply);
-                }
-            );
-        }
-    );
+    my $fh = $port_handle->get_raw_handler();
+    
     $handle->push_write(
         json => {
             command => 'connect',

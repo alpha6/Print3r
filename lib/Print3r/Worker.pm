@@ -3,7 +3,7 @@ package Print3r::Worker;
 use v5.20;
 use warnings;
 no if $] >= 5.018, warnings => 'experimental::smartmatch';
-our $VERSION = version->declare('v0.0.2');
+our $VERSION = version->declare('v0.0.3');
 
 use JSON;
 use AnyEvent::Handle;
@@ -12,17 +12,15 @@ use Data::Dumper;
 
 use Carp;
 
-sub new {
-    my $class = shift;
-    my $self = { printer_handle => undef, };
-    bless $self, $class;
-    return $self;
-}
+my $queue_size = 32; #queue size is 32 commands by default
 
-sub connect_to_printer {
-    my $self        = shift;
+sub connect {
+    my $class = shift;
     my $device_port = shift;
     my $port_speed  = shift || 115200;
+    my $processing_command = shift;
+
+    my $self = {};
 
     say "Connecting.. [$device_port] [$port_speed]";
     my $port = Device::SerialPort->new($device_port)
@@ -38,15 +36,62 @@ sub connect_to_printer {
     $port->error_msg('ON');
 
     $self->{'printer_port'} = $port;
+    $self->{'commands_queue'} = [];
 
-    return $port;
+    my $printer_handle = AnyEvent::Handle->new(
+        fh       => $port->{'HANDLE'},
+        on_error => sub { #on_error
+            my ( $hdl, $fatal, $message ) = @_;
+            
+            $hdl->destroy;
+            undef $hdl;
+            
+            croak("$fatal : $message");
+        },
+        on_read => sub { #on_read
+            my $p_hdl = shift;
+            $p_hdl->push_read(
+                line => sub {
+                    my ( undef, $line ) = @_;
+                    my $parsed_reply = $self->parse_line($line);
+           
+                    if ($parsed_reply->{'type'} eq 'ready') {
+                        $self->send_command();
+                    }
+
+                    &$processing_command->($parsed_reply);
+                }
+            );
+        },
+
+         
+    );
+
+    bless $self, $class;
+    return $self;
 }
 
-sub get_raw_handler {
+sub send_command {
     my $self = shift;
-    croak 'Printer isn\'t connected' unless defined $self->{'printer_port'};
 
-    return $self->{'printer_port'}{'HANDLE'};
+    if ($#{$self->{'commands_queue'}} > 0) {
+        $self->{'printer_port'}->write(shift $self->{'commands_queue'});
+        return 1;
+    } 
+
+    return 0;
+}
+
+sub write {
+    my $self = shift;
+    my $command = shift;
+
+    if ($#{$self->{'commands_queue'}} < $queue_size) {
+        push $self->{'commands_queue'}, $command;
+        return 1;    
+    } else {
+        return 0;
+    }
 }
 
 sub parse_line {

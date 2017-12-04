@@ -68,6 +68,28 @@ subtest 'check_reply_format' => sub {
     $cv->recv;
 };
 
+subtest 'check_M109' => sub {
+	local $/ = "\r\n";
+	
+	my $gcode = 'M109';
+    my $stat = syswrite( $port, sprintf("%s\n", $gcode) );
+    
+    my $cv = AE::cv;
+    my $timer = AnyEvent->timer(
+        after => 0.1,
+        cb    => sub {
+            sysread( $port, my $line, 1024 );
+            chomp ($line);
+
+            say sprintf('line [%s]', $line);
+            like ($line, qr/^ok /, 'Test M109 Mock');
+            $cv->send;
+        }
+    );
+    
+    $cv->recv;
+};
+
 
 
 done_testing;

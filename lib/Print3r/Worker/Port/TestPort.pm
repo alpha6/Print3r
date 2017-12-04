@@ -22,16 +22,10 @@ sub connect($class) {
 
     my $hdl;
 
-    my $timer = AnyEvent->timer( after => 5, cb => sub { say STDERR "hi" } );
-    $self->{'timer'} = $timer;
-
-    # say STDERR "Creating server";
     my $listen_handle = AnyEvent::Socket::tcp_server(
         undef, 34832,
         sub {
             my ( $clsock, $host, $port ) = @_;
-
-            # print STDERR "Got new client connection: $host:$port\n";
 
             $hdl = AnyEvent::Handle->new(
                 fh      => $clsock,
@@ -60,8 +54,6 @@ sub connect($class) {
         }
     );
 
-    # say STDERR "Creating client";
-
     my $client = IO::Socket::INET->new(
         PeerAddr => 'localhost',
         PeerPort => 34832,
@@ -72,11 +64,7 @@ sub connect($class) {
     $self->{'server'} = $listen_handle;
 
     bless $self, $class;
-
-    # say STDERR "Creating closure";
     $self->{'self_closure'} = $self;
-
-    # say STDERR "returning client handle";
 
     return $client;
 }

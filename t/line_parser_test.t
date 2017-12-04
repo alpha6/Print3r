@@ -7,18 +7,18 @@ use warnings;
 use Test::More;
 use Test::Deep;
 
-use Print3r::Worker;
+use Print3r::Worker::Commands::Parser;
 
 use Data::Dumper;
 
 subtest 'creates correct object' => sub {
-    isa_ok(Print3r::Worker->new, 'Print3r::Worker');
+    isa_ok(Print3r::Worker::Commands::Parser->new, 'Print3r::Worker::Commands::Parser');
 };
 
-my $worker = Print3r::Worker->new;
+my $worker = Print3r::Worker::Commands::Parser->new;
 
 subtest 'check_version' => sub {
-    is($worker->VERSION, 'v0.0.2', 'check that the test is for suitable module version');
+    is($worker->VERSION, 'v0.0.1', 'check that the test is for correct module version');
 };
 
 subtest 'parse temp line' => sub {

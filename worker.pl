@@ -109,7 +109,7 @@ sub process_command {
         $is_printer_ready = $command->{'printer_ready'};
     }
 
-# The temperature is processed separately because it should be shown while printing.
+# The temperature is processing separately because it should be shown while printing.
     if ( $command->{'type'} eq 'temperature' ) {
         $handle->push_write(
             json => {

@@ -10,8 +10,11 @@ requires 'AnyEvent::ReadLine::Gnu';
 requires 'Device::SerialPort';
 requires 'Carp';
 requires 'Time::Moment';
+requires 'HTTP::Request';
+requires 'HTTP::Response';
 
 on test => sub {
     requires 'Test::More';
     requires 'Test::Deep';
+    requires 'Test::MonkeyMock';
 };

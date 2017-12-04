@@ -48,9 +48,9 @@ sub connect($class) {
                 },
                 on_eof => sub {
                     print STDERR "client connection $host:$port: eof\n";
-                    # $hdl->fh->close;
-                    # undef $hdl;
-                    # $self->DESTROY;
+                    $hdl->fh->close;
+                    undef $hdl;
+                    $self->DESTROY;
                 },
                 on_error => sub {
                     print STDERR "Client connection error: $host:$port: $!\n";

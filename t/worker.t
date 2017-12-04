@@ -13,14 +13,14 @@ use Data::Dumper;
 
 $ENV{'TESTING'} = 1;
 
+my $worker = Print3r::Worker->connect('/dev/ttyUSB0', 115200, sub { say Dumper \@_});
+
 subtest 'creates correct object' => sub {
-    isa_ok(Print3r::Worker->connect('Print3r::Worker', '/dev/ttyUSB0', 115200, sub { say Dumper \@_}), 'Print3r::Worker');
+    isa_ok($worker, 'Print3r::Worker');
 };
 
-my $cmd = Print3r::Worker->connect('/dev/ttyUSB0', 115200, sub { say Dumper \@_});
-
 subtest 'check_version' => sub {
-    is($cmd->VERSION, 'v0.0.4', 'check that the test is for suitable module version');
+    is($worker->VERSION, 'v0.0.4', 'check that the test is for suitable module version');
 };
 
 done_testing;

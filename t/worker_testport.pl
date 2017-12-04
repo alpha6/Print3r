@@ -44,7 +44,6 @@ subtest 'check_connection' => sub {
     );
     
     $cv->recv;
-    # $port->close();
 };
 
 subtest 'check_reply_format' => sub {
@@ -67,7 +66,6 @@ subtest 'check_reply_format' => sub {
     );
     
     $cv->recv;
-    # $port->close();
 };
 
 

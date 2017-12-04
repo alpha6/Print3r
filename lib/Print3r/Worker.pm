@@ -14,12 +14,12 @@ use AnyEvent::Handle;
 use Data::Dumper;
 
 use Print3r::Worker::Port;
-use Print3r::Worker::Commands::Parser;
+use Print3r::Worker::Commands::PrinterReplyParser;
 
 use Carp;
 
 my $queue_size = 32; #queue size is 32 commands by default
-my $parser = Print3r::Worker::Commands::Parser->new();
+my $parser = Print3r::Worker::Commands::PrinterReplyParser->new();
 
 sub connect {
     my $class = shift;

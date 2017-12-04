@@ -1,4 +1,4 @@
-package Print3r::Worker::Commands::Parser;
+package Print3r::Worker::Commands::PrinterReplyParser;
 
 use v5.20;
 use strict;

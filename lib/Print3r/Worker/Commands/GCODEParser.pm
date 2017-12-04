@@ -21,40 +21,49 @@ sub parse_code ( $self, $code ) {
         when (/^M104/) { $code_data = $self->_parse_temp_code($code); }
         when (/^M190/) { $code_data = $self->_parse_temp_code($code); }
         when (/^M140/) { $code_data = $self->_parse_temp_code($code); }
+        when (/^M105/) {
+            $code_data = {
+                code => $code,
+                type => 'info_req',
+                };
+        }
         default {
-        	$code_data = {
-        		code => $code,
-        		type => 'common',
-        	}
+            $code_data = {
+                code => $code,
+                type => 'common',
+                }
         }
     }
 
     return $code_data;
 }
 
-sub _parse_temp_code($self, $code) {
-	my $data = {
-		code => $code,
-		type => 'temperature',
-	};
-	my ($id, $temp) = $code =~ /^M(\d{3})\s+S(\d+)/;
-	$data->{'target_temp'} = $temp;
+sub _parse_temp_code ( $self, $code ) {
+    my $data = {
+        code => $code,
+        type => 'temperature',
+    };
+    my ( $id, $temp ) = $code =~ /^M(\d{3})\s+S(\d+)/;
+    $data->{'target_temp'} = $temp;
 
-	if ($id == 104) {
-		$data->{'heater'} = 'hotend';
-		$data->{'async'} = 1;	
-	} elsif ($id == 109) {
-		$data->{'heater'} = 'hotend';
-		$data->{'async'} = 0;
-	} elsif ($id == 140) {
-		$data->{'heater'} = 'bed';
-		$data->{'async'} = 1;
-	} elsif ($id == 190) {
-		$data->{'heater'} = 'bed';
-		$data->{'async'} = 0;
-	} 
+    if ( $id == 104 ) {
+        $data->{'heater'} = 'hotend';
+        $data->{'async'}  = 1;
+    }
+    elsif ( $id == 109 ) {
+        $data->{'heater'} = 'hotend';
+        $data->{'async'}  = 0;
+    }
+    elsif ( $id == 140 ) {
+        $data->{'heater'} = 'bed';
+        $data->{'async'}  = 1;
+    }
+    elsif ( $id == 190 ) {
+        $data->{'heater'} = 'bed';
+        $data->{'async'}  = 0;
+    }
 
-	return $data;
+    return $data;
 }
 
 1;

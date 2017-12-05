@@ -12,6 +12,7 @@ use Print3r::Worker::Port::TestPort;
 use Print3r::Worker::Commands::PrinterReplyParser;
 
 use AnyEvent;
+use AnyEvent::Handle;
 
 use Data::Dumper;
 
@@ -25,7 +26,7 @@ subtest 'creates correct object' => sub {
 };
 
 subtest 'check_version' => sub {
-    is( $check_package->VERSION, 'v0.0.2',
+    is( $check_package->VERSION, 'v0.0.3',
         'check that the test is for suitable module version' );
 };
 
@@ -78,8 +79,8 @@ subtest 'check_sync_temps' => sub {
 
         my $cv = AE::cv;
 
-        my $hdl;
         my $steps = 0;
+        my $hdl;
         $hdl = AnyEvent::Handle->new(
             fh      => $port,
             on_read => sub {

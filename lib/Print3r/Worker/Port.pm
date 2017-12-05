@@ -10,6 +10,8 @@ our $VERSION = version->declare('v0.0.1');
  
 use Print3r::Worker::Port::Serial;
 
+use Data::Dumper;
+
 
 #A fabric class that returns a serial port handler that controls serial port in given environment.
 sub new($class, $device_port, $port_speed) {

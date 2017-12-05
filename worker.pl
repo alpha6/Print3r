@@ -25,7 +25,8 @@ use Data::Dumper;
 
 my $cv = AE::cv;
 
-my $log = Print3r::Logger->get_logger( 'file', file => 'worker.log' );
+my $log = Print3r::Logger->get_logger( 'file', file => 'worker.log', synced => 1, level => 'debug' );
+say STDERR Dumper($log);
 my $plog = undef;    # printing logger
 
 my $handle;
@@ -76,12 +77,13 @@ sub get_line {
 }
 
 sub get_printing_logger {
-    my $filename = fileparse( $print_file_path, qr/\.[^.]*/ );
+    # my $filename = fileparse( $print_file_path, qr/\.[^.]*/ );
+    my $filename = 'test_file';
 
     my $date = Time::Moment->now->strftime('%F_%H.%M');
 
     my $log_file = sprintf( '%s_%s.log', $filename, $date );
-    my $logger = Print3r::Logger->get_logger( 'file', file => $log_file, synced => 1 );
+    my $logger = Print3r::Logger->get_logger( 'file', file => $log_file, synced => 1, level => 'info' );
     $logger->set_level('debug');
 
     return $logger;
@@ -129,7 +131,7 @@ sub process_command {
             if ( my $next_command = get_line( $command->{'start_line'} || 0 ) )
             {
                 $plog->info('sent: '.$next_command);
-                $port_handle->write("$next_command\n");
+                $worker->write("$next_command\n");
             }
             else {
                 $handle->push_write(
@@ -155,7 +157,7 @@ sub process_command {
                 #The function get_line return number only if print ended
                 if ( $next_command !~ /^\d+$/ ) {
                     $plog->info('sent: '.$next_command);
-                    $port_handle->write("$next_command\n");
+                    $worker->write("$next_command\n");
                 }
                 else {
                     $handle->push_write(
@@ -218,7 +220,7 @@ sub process_command {
         );
 
         # Send command to resume printing
-        $port_handle->write("M105\n");
+        $worker->write("M105\n");
     }
     elsif ( $command->{'type'} eq 'stop' ) {
         $log->info('Print stopped.');
@@ -252,12 +254,13 @@ sub connect_to_printer {
         $worker = Print3r::Worker->connect( $printer_port, $port_speed, &process_command());
     }
     catch {
+        say STDERR "Error: $_";
         $handle->push_write(
             json => {
                 command => 'connect',
                 status  => 'error',
                 message => sprintf(
-                    'Connecion to port [%s] failed. Reason [%s]',
+                    'Connection to port [%s] failed. Reason [%s]',
                     $printer_port, $_
                 ),
                 pid   => $$,
@@ -270,9 +273,6 @@ sub connect_to_printer {
         shutdown_worker(1);
     };
 
-    #Creating AE::Handle for the  port of the printer
-    my $fh = $port_handle->get_raw_handler();
-    
     $handle->push_write(
         json => {
             command => 'connect',
@@ -285,7 +285,7 @@ sub connect_to_printer {
     );
 
     #Start communication with the printer
-    $port_handle->write("M105\n");
+    $worker->write("M105\n");
 
     return;
 }
@@ -307,7 +307,7 @@ my $commands = Print3r::Commands->new(
             my $self   = shift;
             my $params = shift;
             $log->info( sprintf( 'External G-Code: %s', Dumper($params) ) );
-            $port_handle->write( sprintf( "%s\n", $params->{'value'} ) );
+            $worker->write( sprintf( "%s\n", $params->{'value'} ) );
         },
         disconnect => sub {
             $log->info('Disconnecting...');
@@ -358,7 +358,7 @@ my $commands = Print3r::Commands->new(
             process_command( { type => 'stop' } );
         },
         status => sub {
-            $port_handle->write("M105\n");
+            $worker->write("M105\n");
 
         }
     }
@@ -371,9 +371,9 @@ my $test_timer = AnyEvent->timer(
     cb       => sub {
 
         # say sprintf("Alive %s", time());
-        if ( defined $port_handle ) {
+        if ( defined $worker ) {
             if ( !$in_command_flag ) {
-                #$port_handle->write("M105\n");
+                #$worker->write("M105\n");
             }
         }
     }
@@ -423,8 +423,8 @@ $cv->recv;
 sub shutdown_worker {
     my $status = shift || 0;
     try {
-        if ( defined $port_handle ) {
-            $port_handle->close();
+        if ( defined $worker ) {
+            $worker->close();
         }
     }
     catch {

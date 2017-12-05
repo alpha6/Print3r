@@ -27,15 +27,21 @@ sub connect {
     my $port_speed = shift;
     my $processing_command = shift;
     
-    my $self = {};
+    my $self = {
+        ready => -1,
+    };
+
+    say Dumper($processing_command);
 
     say "Connecting.. [$device_port] [$port_speed]";
     my $port = Print3r::Worker::Port->new($device_port, $port_speed);
     
+    # say STDERR "Port: ".ref $port;
+
     $self->{'printer_port'} = $port;
     $self->{'commands_queue'} = [];
 
-    my $printer_handle = AnyEvent::Handle->new(
+    $self->{'printer_handle'} = AnyEvent::Handle->new(
         fh       => $port,
         on_error => sub { #on_error
             my ( $hdl, $fatal, $message ) = @_;
@@ -52,16 +58,17 @@ sub connect {
                     my ( undef, $line ) = @_;
                     my $parsed_reply = $parser->parse_line($line);
            
+                    say "Parsed reply: ".Dumper($parsed_reply);
+
                     if ($parsed_reply->{'type'} eq 'ready') {
+                        $self->{'ready'} = 1;
                         $self->send_command();
                     }
 
-                    &$processing_command->($parsed_reply);
+                    $processing_command->($parsed_reply);
                 }
             );
-        },
-
-         
+        },     
     );
 
     bless $self, $class;
@@ -71,8 +78,9 @@ sub connect {
 sub send_command {
     my $self = shift;
 
-    if ($#{$self->{'commands_queue'}} > 0) {
-        $self->{'printer_port'}->write(shift @{$self->{'commands_queue'}});
+    if ($#{$self->{'commands_queue'}} > 0 && $self->{'ready'}) {
+        $self->{'printer_handle'}->push_write(shift @{$self->{'commands_queue'}});
+        $self->{'ready'} = 0;
         return 1;
     } 
 
@@ -91,6 +99,14 @@ sub write {
     }
 }
 
+sub init_printer {
+    my $self = shift;
+    if ($self->{'ready'} < 0) {
+        $self->{'printer_handle'}->push_write("M105\015\012");
+        return 1;
+    }
+    return 0;
+}
 
 
 1;

@@ -15,7 +15,7 @@ $ENV{'TESTING'} = 1;
 
 my $reply;
 my $worker = Print3r::Worker->connect( '/dev/ttyUSB0', 115200,
-    sub { $reply = $_[0]; } );
+    sub { ($reply) = @_} );
 
 subtest 'creates correct object' => sub {
     isa_ok( $worker, 'Print3r::Worker' );
@@ -28,6 +28,7 @@ subtest 'check_version' => sub {
 
 subtest 'init' => sub {
     $reply = undef;
+    
     my $cv = AE::cv;
 
     my $res = $worker->init_printer();
@@ -58,3 +59,7 @@ subtest 'init' => sub {
 };
 
 done_testing;
+
+sub test_function {
+
+}

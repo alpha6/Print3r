@@ -12,14 +12,14 @@ use Carp;
 use AnyEvent::Handle;
 use AnyEvent::Socket;
 
-# use IO::Socket::INET;
-
-use Print3r::Worker::Port::TestSocketINET;
-
 use Data::Dumper;
 
+use Print3r::Logger;
+use Print3r::Worker::Port::TestSocketINET;
 use Print3r::Worker::Commands::GCODEParser;
 my $parser = Print3r::Worker::Commands::GCODEParser->new;
+
+my $log = Print3r::Logger->get_logger( 'file', file => 'emulator.log', synced => 1, level => 'debug' );
 
 my $temp_change_step = 1;
 my $temp_timer;
@@ -36,6 +36,7 @@ sub connect($class) {
 
     my $hdl;
 
+    $log->debug('Creating listener...');
     my $listen_handle = AnyEvent::Socket::tcp_server(
         undef, 34832,
         sub {
@@ -48,20 +49,25 @@ sub connect($class) {
                         line => sub {
                             my ( undef, $line ) = @_;
                             chomp $line;
+                            $log->debug(sprintf('Got line: %s', $line));
                             $self->process_line( $hdl, $line );
                         }
                     );
                 },
                 on_eof => sub {
-                    print "client connection $host:$port: eof\nShutting down emulator\n";
+                    $log->info("client connection $host:$port: eof");
+                    $log->info("Shutting down emulator");
+
                     $hdl->fh->close;
                     undef $hdl;
                     exit(0);
                 },
                 on_error => sub {
-                    print "Client connection error: $host:$port: $!\n";
+                    $log->error("Client connection error: $host:$port: $!");
                 },
             );
+
+            # $hdl->push_write('start');
 
         }
     );
@@ -74,7 +80,7 @@ sub connect($class) {
 }
 
 sub process_line ( $self, $handle, $line ) {
-    # say STDERR "line: " . $line;
+    $log->debug("Processing line: " . $line);
 
     my $code_data = $parser->parse_code($line);
     if ( $code_data->{'type'} eq 'common' ) {

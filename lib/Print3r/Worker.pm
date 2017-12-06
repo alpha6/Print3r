@@ -13,6 +13,7 @@ use JSON;
 use AnyEvent::Handle;
 use Data::Dumper;
 
+use Print3r::Logger;
 use Print3r::Worker::Port;
 use Print3r::Worker::Commands::PrinterReplyParser;
 
@@ -20,20 +21,22 @@ use Carp;
 
 my $queue_size = 32; #queue size is 32 commands by default
 my $parser = Print3r::Worker::Commands::PrinterReplyParser->new();
+my $log = Print3r::Logger->get_logger( 'stderr', level => 'debug' );
 
 sub connect {
+    $log->trace('connect: '.Dumper(\@_));
+
     my $class = shift;
     my $device_port = shift;
     my $port_speed = shift;
     my $processing_command = shift;
+    my $log = shift || Print3r::Logger->get_logger( 'stderr', level => 'debug' );
     
     my $self = {
         ready => -1,
     };
 
-    say Dumper($processing_command);
-
-    say "Connecting.. [$device_port] [$port_speed]";
+    $log->debug("Connecting.. [$device_port] [$port_speed]");
     my $port = Print3r::Worker::Port->new($device_port, $port_speed);
     
     # say STDERR "Port: ".ref $port;
@@ -58,11 +61,11 @@ sub connect {
                     my ( undef, $line ) = @_;
                     my $parsed_reply = $parser->parse_line($line);
            
-                    say "Parsed reply: ".Dumper($parsed_reply);
+                    $log->debug("Parsed reply: ".Dumper($parsed_reply));
 
-                    if ($parsed_reply->{'type'} eq 'ready') {
+                    if ($parsed_reply->{'printer_ready'}) {
                         $self->{'ready'} = 1;
-                        $self->send_command();
+                        $self->_send_command();
                     }
 
                     $processing_command->($parsed_reply);
@@ -75,15 +78,21 @@ sub connect {
     return $self;
 }
 
-sub send_command {
+sub _send_command {
     my $self = shift;
 
-    if ($#{$self->{'commands_queue'}} > 0 && $self->{'ready'}) {
+    $log->debug('Sending command from queue...');
+    $log->debug("Queue size: ".$#{$self->{'commands_queue'}});
+    $log->debug(sprintf('Status [%s]', $self->{'ready'}));
+
+    if ($#{$self->{'commands_queue'}} >= 0 && $self->{'ready'}) {
         $self->{'printer_handle'}->push_write(shift @{$self->{'commands_queue'}});
         $self->{'ready'} = 0;
+        $log->debug(sprintf('Sent. Status [%s]', $self->{'ready'}));
         return 1;
     } 
 
+    $log->debug(sprintf('Printer is not ready. Status [%s]', $self->{'ready'}));
     return 0;
 }
 
@@ -91,10 +100,18 @@ sub write {
     my $self = shift;
     my $command = shift;
 
+    $log->debug('Writing command to queue...');
+    $log->debug(sprintf('Command [%s]', $command));
+    $log->debug("Queue size: ".$#{$self->{'commands_queue'}});
+    $log->debug(sprintf('Status [%s]', $self->{'ready'}));
+
+
     if ($#{$self->{'commands_queue'}} < $queue_size) {
         push @{$self->{'commands_queue'}}, $command;
+        $self->_send_command() if ($self->{'ready'});
         return 1;    
     } else {
+        $log->debug(sprintf ('Queue size more than limit', $#{$self->{'commands_queue'}}));
         return 0;
     }
 }

@@ -36,7 +36,7 @@ sub connect($class) {
         pid => $pid,
     };
 
-    say Dumper($self);
+    # say Dumper($self);
 
     my $client = Print3r::Worker::Port::TestSocketINET->new(
         PeerAddr => 'localhost',

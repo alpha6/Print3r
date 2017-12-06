@@ -26,7 +26,7 @@ use Data::Dumper;
 my $cv = AE::cv;
 
 my $log = Print3r::Logger->get_logger( 'file', file => 'worker.log', synced => 1, level => 'debug' );
-say STDERR Dumper($log);
+
 my $plog = undef;    # printing logger
 
 my $handle;
@@ -51,8 +51,7 @@ GetOptions(
     's=i' => \$port_speed
 );
 
-# my $worker = Print3r::Worker->new();
-my $worker = undef;
+my $worker;
 
 sub get_line {
     my $start_line = shift || 0;
@@ -77,9 +76,8 @@ sub get_line {
 }
 
 sub get_printing_logger {
-    # my $filename = fileparse( $print_file_path, qr/\.[^.]*/ );
-    my $filename = 'test_file';
-
+    my $filename = fileparse( $print_file_path, qr/\.[^.]*/ );
+    
     my $date = Time::Moment->now->strftime('%F_%H.%M');
 
     my $log_file = sprintf( '%s_%s.log', $filename, $date );
@@ -251,7 +249,7 @@ sub process_command {
 
 sub connect_to_printer {
     try {
-        $worker = Print3r::Worker->connect( $printer_port, $port_speed, &process_command());
+        $worker = Print3r::Worker->connect( $printer_port, $port_speed, \&process_command);
     }
     catch {
         say STDERR "Error: $_";

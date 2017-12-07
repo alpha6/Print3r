@@ -12,7 +12,6 @@ use Carp;
 use IPC::Open2;
 use Cwd 'abs_path';
 
-
 use Print3r::Worker::Port::TestSocketINET;
 
 use Data::Dumper;
@@ -25,13 +24,13 @@ sub connect($class) {
 
     my $abs_path = abs_path('printer_emulator.pl');
 
-    my($chld_out, $chld_in);
-        my $pid = open2($chld_out, $chld_in, $abs_path);
+    my ( $chld_out, $chld_in );
+    my $pid = open2( $chld_out, $chld_in, $abs_path );
 
     sleep 1;
-    
+
     my $self = {
-        in => $chld_in,
+        in  => $chld_in,
         out => $chld_out,
         pid => $pid,
     };

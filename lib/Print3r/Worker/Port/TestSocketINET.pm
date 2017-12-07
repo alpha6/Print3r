@@ -1,7 +1,8 @@
 package Print3r::Worker::Port::TestSocketINET;
-use base IO::Socket::INET;
+use base 'IO::Socket::INET';
 
-use Data::Dumper;
+use strict;
+use warnings;
 use feature qw(say);
 
 sub write {    #just make an interface comapatible with Device::SerialPort

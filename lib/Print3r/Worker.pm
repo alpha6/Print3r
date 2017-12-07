@@ -30,9 +30,7 @@ sub connect {
     my $device_port        = shift;
     my $port_speed         = shift;
     my $processing_command = shift;
-    my $log =
-      shift || Print3r::Logger->get_logger( 'stderr', level => 'debug' );
-
+    
     my $self = { ready => -1, };
 
     $log->debug("Connecting.. [$device_port] [$port_speed]");
@@ -60,7 +58,7 @@ sub connect {
                     my ( undef, $line ) = @_;
                     my $parsed_reply = $parser->parse_line($line);
 
-                    $log->debug( "Parsed reply: " . Dumper($parsed_reply) );
+                    $log->debug( 'Parsed reply: ' . Dumper($parsed_reply) );
 
                     if ( $parsed_reply->{'printer_ready'} ) {
                         $self->{'ready'} = 1;

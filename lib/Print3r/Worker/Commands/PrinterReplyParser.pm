@@ -12,7 +12,7 @@ our $VERSION = version->declare('v0.0.1');
 sub new {
 	my $class = shift;
 	bless {}, $class;
-};
+}
 
 sub parse_line ($self, $line) {
     my $type = {};

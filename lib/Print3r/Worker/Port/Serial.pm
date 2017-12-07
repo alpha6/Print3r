@@ -10,11 +10,10 @@ our $VERSION = version->declare('v0.0.1');
 use Carp;
 use Device::SerialPort;
 
+sub connect ( $device_port, $port_speed ) {
+    my $class = shift;
 
-sub connect($device_port, $port_speed) {
-	my $class = shift;
-
-	my $port = Device::SerialPort->new($device_port)
+    my $port = Device::SerialPort->new($device_port)
       or croak "Can't connect to [$device_port] at speed [$port_speed]";
 
     $port->handshake('none');
@@ -26,9 +25,8 @@ sub connect($device_port, $port_speed) {
     $port->debug(1);
     $port->error_msg('ON');
 
-
     my $self = { port => $port };
-    $self->{ self_closure } = $self;
+    $self->{self_closure} = $self;
 
     bless $self, $class;
 
@@ -36,8 +34,8 @@ sub connect($device_port, $port_speed) {
 }
 
 sub DESTORY {
-	my $self = shift;
-	delete $self->{'self_closure'};
+    my $self = shift;
+    delete $self->{'self_closure'};
 }
 
 1;

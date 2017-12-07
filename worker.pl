@@ -25,7 +25,12 @@ use Data::Dumper;
 
 my $cv = AE::cv;
 
-my $log = Print3r::Logger->get_logger( 'file', file => 'worker.log', synced => 1, level => 'debug' );
+my $log = Print3r::Logger->get_logger(
+    'file',
+    file   => 'worker.log',
+    synced => 1,
+    level  => 'debug'
+);
 
 my $plog = undef;    # printing logger
 
@@ -77,11 +82,16 @@ sub get_line {
 
 sub get_printing_logger {
     my $filename = fileparse( $print_file_path, qr/\.[^.]*/ );
-    
+
     my $date = Time::Moment->now->strftime('%F_%H.%M');
 
     my $log_file = sprintf( '%s_%s.log', $filename, $date );
-    my $logger = Print3r::Logger->get_logger( 'file', file => $log_file, synced => 1, level => 'info' );
+    my $logger = Print3r::Logger->get_logger(
+        'file',
+        file   => $log_file,
+        synced => 1,
+        level  => 'info'
+    );
     $logger->set_level('debug');
 
     return $logger;
@@ -125,10 +135,10 @@ sub process_command {
         try {
 
             $line_number = 0;
-            $plog = get_printing_logger();
+            $plog        = get_printing_logger();
             if ( my $next_command = get_line( $command->{'start_line'} || 0 ) )
             {
-                $plog->info('sent: '.$next_command);
+                $plog->info( 'sent: ' . $next_command );
                 $worker->write("$next_command\n");
             }
             else {
@@ -154,7 +164,7 @@ sub process_command {
             try {
                 #The function get_line return number only if print ended
                 if ( $next_command !~ /^\d+$/ ) {
-                    $plog->info('sent: '.$next_command);
+                    $plog->info( 'sent: ' . $next_command );
                     $worker->write("$next_command\n");
                 }
                 else {
@@ -249,7 +259,8 @@ sub process_command {
 
 sub connect_to_printer {
     try {
-        $worker = Print3r::Worker->connect( $printer_port, $port_speed, \&process_command);
+        $worker = Print3r::Worker->connect( $printer_port, $port_speed,
+            \&process_command );
     }
     catch {
         say STDERR "Error: $_";
@@ -371,6 +382,7 @@ my $test_timer = AnyEvent->timer(
         # say sprintf("Alive %s", time());
         if ( defined $worker ) {
             if ( !$in_command_flag ) {
+
                 #$worker->write("M105\n");
             }
         }

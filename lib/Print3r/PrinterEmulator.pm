@@ -19,7 +19,12 @@ use Print3r::Worker::Port::TestSocketINET;
 use Print3r::Worker::Commands::GCODEParser;
 my $parser = Print3r::Worker::Commands::GCODEParser->new;
 
-my $log = Print3r::Logger->get_logger( 'file', file => 'emulator.log', synced => 1, level => 'debug' );
+my $log = Print3r::Logger->get_logger(
+    'file',
+    file   => 'emulator.log',
+    synced => 1,
+    level  => 'debug'
+);
 
 my $temp_change_step = 1;
 my $temp_timer;
@@ -49,14 +54,14 @@ sub connect($class) {
                         line => sub {
                             my ( undef, $line ) = @_;
                             chomp $line;
-                            $log->debug(sprintf('Got line: %s', $line));
+                            $log->debug( sprintf( 'Got line: %s', $line ) );
                             $self->process_line( $hdl, $line );
                         }
                     );
                 },
                 on_eof => sub {
                     $log->info("client connection $host:$port: eof");
-                    $log->info("Shutting down emulator");
+                    $log->info('Shutting down emulator');
 
                     $hdl->fh->close;
                     undef $hdl;
@@ -80,7 +85,7 @@ sub connect($class) {
 }
 
 sub process_line ( $self, $handle, $line ) {
-    $log->debug("Processing line: " . $line);
+    $log->debug( sprintf('Processing line: %s', $line) );
 
     my $code_data = $parser->parse_code($line);
     if ( $code_data->{'type'} eq 'common' ) {
@@ -106,32 +111,29 @@ sub process_line ( $self, $handle, $line ) {
                 after    => 0.5,
                 interval => 0.5,
                 cb       => sub {
-                    if ( $code_data->{'target_temp'} > $self->{$heater_name} )
-                    {
+                    if ( $code_data->{'target_temp'} > $self->{$heater_name} ) {
                         $self->{$heater_name} += $temp_change_step;
-                        if ( $code_data->{'target_temp'}
-                            < $self->{$heater_name} )
+                        if ( $code_data->{'target_temp'} <
+                            $self->{$heater_name} )
                         {
-                            $self->{$heater_name}
-                                = $code_data->{'target_temp'};
+                            $self->{$heater_name} = $code_data->{'target_temp'};
                         }
                     }
                     elsif (
                         $code_data->{'target_temp'} < $self->{$heater_name} )
                     {
                         $self->{$heater_name} -= $temp_change_step;
-                        if ( $code_data->{'target_temp'}
-                            > $self->{$heater_name} )
+                        if ( $code_data->{'target_temp'} >
+                            $self->{$heater_name} )
                         {
-                            $self->{$heater_name}
-                                = $code_data->{'target_temp'};
+                            $self->{$heater_name} = $code_data->{'target_temp'};
                         }
                     }
                     else {
                         #Temperature reached. Send message and remove timer
                         $handle->push_write(
                             sprintf
-                                "ok T:%s.0 /0.0 \@0 B:%s.0 /0.0 \@0\015\012",
+                              "ok T:%s.0 /0.0 \@0 B:%s.0 /0.0 \@0\015\012",
                             $self->{'hotend_temp'}, $self->{'bed_temp'}
                         );
                         undef $temp_timer;
@@ -149,8 +151,8 @@ sub process_line ( $self, $handle, $line ) {
             );
         }
         else {
-            $self->{ $code_data->{'heater'} . '_temp' }
-                = $code_data->{'target_temp'};
+            $self->{ $code_data->{'heater'} . '_temp' } =
+              $code_data->{'target_temp'};
             $self->_send_reply(
                 $handle,
                 sprintf(

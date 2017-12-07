@@ -19,10 +19,10 @@ use Getopt::Long;
 
 use Print3r::PrinterEmulator;
 
-my $cv    = AE::cv;
+my $cv = AE::cv;
 
-say "Starting printer emulator...";
+say 'Starting printer emulator...';
 my $emu = Print3r::PrinterEmulator->connect();
-say "Started. Receiving commands";
+say 'Started. Receiving commands';
 
 $cv->recv;

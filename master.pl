@@ -47,6 +47,7 @@ my $workers_timer = AnyEvent->timer(
         for my $key ( keys(%connections) ) {
 
             my $handler = $connections{$key}{'handle'};
+
             #$handler->push_write( json => { command => 'status' } );
         }
     }

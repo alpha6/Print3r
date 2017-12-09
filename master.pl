@@ -47,6 +47,7 @@ my $workers_timer = AnyEvent->timer(
         for my $key ( keys(%connections) ) {
 
             my $handler = $connections{$key}{'handle'};
+
             #$handler->push_write( json => { command => 'status' } );
         }
     }
@@ -364,6 +365,19 @@ sub process_command {
             my $handler = $connections{$h_name}{'handle'};
             $handler->push_write(
                 json => { command => 'resume', params => {} } );
+        }
+        when ('recover') {
+
+            # Recover printing
+
+            my ($h_name) = keys %connections;
+            my $handler = $connections{$h_name}{'handle'};
+            $handler->push_write(
+                json => {
+                    command => 'recover',
+                    params  => { file => $data->{'file'} }
+                }
+            );
         }
         when ('disconnect') {
 

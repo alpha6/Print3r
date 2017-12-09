@@ -2,7 +2,7 @@ package Print3r::Commands;
 
 use v5.20;
 use warnings;
-our $VERSION = version->declare('v0.0.1');
+our $VERSION = version->declare('v0.0.2');
 
 use JSON;
 use IO::Socket::INET;
@@ -37,5 +37,7 @@ sub AUTOLOAD {
     use strict 'refs';
     goto &{$sub};
 }
+
+sub DESTROY {}
 
 1;

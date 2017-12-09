@@ -11,6 +11,7 @@ sub new {
     my (%params) = @_;
 
     $self->{file} = $params{file};
+    $self->{'level'} = $params{'level'} || 'error';
 
     open my $fh, '>>', $params{file} or die $!;
     if (defined $params{'synced'}) {

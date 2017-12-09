@@ -3,6 +3,9 @@ package Print3r::Logger::LoggerBase;
 use strict;
 use warnings;
 
+use feature qw(say);
+use Data::Dumper;
+
 use Carp qw(croak);
 use List::Util qw(first);
 use Time::Moment;
@@ -22,7 +25,8 @@ sub new {
     my $self = {};
     bless $self, $class;
 
-    $self->{file} = $params{file};
+    $self->{'file'} = $params{'file'};
+    $self->{'level'} = $params{'level'} || 'error';
 
     return $self;
 }

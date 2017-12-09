@@ -7,7 +7,7 @@ requires 'Log::Log4perl';
 requires 'Try::Tiny';
 requires 'Getopt::Long';
 requires 'AnyEvent::ReadLine::Gnu';
-requires 'Device::SerialPort';
+requires 'IO::Termios';
 requires 'Carp';
 requires 'Time::Moment';
 requires 'HTTP::Request';
@@ -16,5 +16,4 @@ requires 'HTTP::Response';
 on test => sub {
     requires 'Test::More';
     requires 'Test::Deep';
-    requires 'Test::MonkeyMock';
 };

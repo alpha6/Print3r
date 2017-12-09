@@ -13,7 +13,9 @@ use IO::Termios;
 sub connect ( $class, $device_port, $port_speed ) {
 
     my $stty = IO::Termios->open($device_port);
-    $stty->set_mode(sprintf('%s,8,n,1', $port_speed));
+    my $mode = sprintf('%s,8,n,1', $port_speed);
+    # say STDERR "mode: [$mode]";
+    $stty->set_mode($mode);
     $stty->setflag_echo( 0 );
 
     my $self = { port => $stty };

@@ -23,14 +23,9 @@ my $queue_size = 32;    #queue size is 32 commands by default
 my $parser = Print3r::Worker::Commands::PrinterReplyParser->new();
 my $log = Print3r::Logger->get_logger( 'stderr', level => 'debug' );
 
-sub connect {
-    $log->trace( 'connect: ' . Dumper( \@_ ) );
+sub connect($class, $device_port, $port_speed, $command_callback) {
+    $log->debug( 'connect: ' . Dumper( \@_ ) );
 
-    my $class              = shift;
-    my $device_port        = shift;
-    my $port_speed         = shift;
-    my $processing_command = shift;
-    
     my $self = { ready => -1, };
 
     $log->debug("Connecting.. [$device_port] [$port_speed]");
@@ -65,7 +60,7 @@ sub connect {
                         $self->_send_command();
                     }
 
-                    $processing_command->($parsed_reply);
+                    $command_callback->($parsed_reply);
                 }
             );
         },

@@ -11,11 +11,15 @@ use Print3r::Worker;
 
 use Data::Dumper;
 
-$ENV{'TESTING'} = 1;
+my $testing_port = $ENV{'TESTING_PORT'};
+
+if( !defined $testing_port ) {
+    plan skip_all => 'No testing port given';
+}
 
 my $reply;
-my $worker = Print3r::Worker->connect( '/dev/ttyUSB0', 115200,
-    sub { ($reply) = @_} );
+my $worker = Print3r::Worker->connect( $testing_port, 115200,
+    sub { say STDERR "reply: ".Dumper(\@_); ($reply) = @_} );
 
 subtest 'creates correct object' => sub {
     isa_ok( $worker, 'Print3r::Worker' );
@@ -59,7 +63,3 @@ subtest 'init' => sub {
 };
 
 done_testing;
-
-sub test_function {
-
-}

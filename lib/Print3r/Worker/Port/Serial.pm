@@ -8,29 +8,20 @@ no warnings qw(experimental::signatures);
 our $VERSION = version->declare('v0.0.1');
 
 use Carp;
-use Device::SerialPort;
+use IO::Termios;
 
-sub connect ( $device_port, $port_speed ) {
-    my $class = shift;
+sub connect ( $class, $device_port, $port_speed ) {
 
-    my $port = Device::SerialPort->new($device_port)
-      or croak "Can't connect to [$device_port] at speed [$port_speed]";
+    my $stty = IO::Termios->open($device_port);
+    $stty->set_mode(sprintf('%s,8,n,1', $port_speed));
+    $stty->setflag_echo( 0 );
 
-    $port->handshake('none');
-    $port->baudrate($port_speed);    # Configure this to match your device
-    $port->databits(8);
-    $port->parity('none');
-    $port->stopbits(1);
-    $port->stty_echo(0);
-    $port->debug(1);
-    $port->error_msg('ON');
-
-    my $self = { port => $port };
+    my $self = { port => $stty };
     $self->{self_closure} = $self;
 
     bless $self, $class;
 
-    return *$port->{'HANDLE'};
+    return $stty;
 }
 
 sub DESTORY {

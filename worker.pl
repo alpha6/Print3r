@@ -442,10 +442,13 @@ sub shutdown_worker {
     };
 
     try {
-        open( my $fh, '>', sprintf( '%s.RECOVER', $print_file_path ) )
-          or die $!;
-        print $fh $line_number;
-        close $fh;
+        if ( defined $print_file_path ) {
+            open( my $fh, '>', sprintf( '%s.RECOVER', $print_file_path ) )
+              or die $!;
+            print $fh $line_number;
+            close $fh;
+        }
+
     };
 
     $handle->destroy();

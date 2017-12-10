@@ -261,11 +261,28 @@ sub process_command {
             #Spawn new worker
             my ( $chld_out, $chld_in );
             my $pid;
+            my $child_watcher;
             try {
                 $pid = open2(
                     $chld_out, $chld_in, './worker.pl',
                     '-p=' . $data->{'port'},
                     '-s=' . $data->{'speed'}
+                );
+
+                #Create child watcher to prevent zombies
+                $child_watcher = AnyEvent->child(
+                    pid => $pid,
+                    cb  => sub {
+                        my ( $pid, $status ) = @_;
+                        $log->info(
+                            sprintf(
+                                'pid %s exited with status [%s]',
+                                $pid, $status
+                            )
+                        );
+                        undef $child_watcher;
+
+                    },
                 );
             }
             catch {
@@ -279,7 +296,7 @@ sub process_command {
                 }
             };
 
-            $workers{$pid} = { chld_in => $chld_in, chld_out => $chld_out };
+            $workers{$pid} = { chld_in => $chld_in, chld_out => $chld_out, watcher => $child_watcher };
             if ($is_cli_connected) {
                 $control_handle->push_write(
                     json => {

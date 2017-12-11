@@ -51,6 +51,8 @@ sub connect($class, $device_port, $port_speed, $command_callback) {
             $p_hdl->push_read(
                 line => sub {
                     my ( undef, $line ) = @_;
+                    return if ($line eq ''); #Skip empty lines
+
                     my $parsed_reply = $parser->parse_line($line);
 
                     $log->debug( 'Parsed reply: ' . Dumper($parsed_reply) );
@@ -73,9 +75,9 @@ sub connect($class, $device_port, $port_speed, $command_callback) {
 sub _send_command {
     my $self = shift;
 
-    $log->debug('Sending command from queue...');
-    $log->debug( sprintf('Queue size [%s]', $#{ $self->{'commands_queue'} } ));
-    $log->debug( sprintf( 'Status [%s]', $self->{'ready'} ) );
+    # $log->debug('Sending command from queue...');
+    # $log->debug( sprintf('Queue size [%s]', $#{ $self->{'commands_queue'} } ));
+    # $log->debug( sprintf( 'Status [%s]', $self->{'ready'} ) );
 
     if ( $#{ $self->{'commands_queue'} } >= 0 && $self->{'ready'} ) {
         $self->{'printer_handle'}
@@ -94,10 +96,10 @@ sub write {
     my $self    = shift;
     my $command = shift;
 
-    $log->debug('Writing command to queue...');
-    $log->debug( sprintf( 'Command [%s]', $command ) );
-    $log->debug( sprintf('Queue size [%s]', $#{ $self->{'commands_queue'} } ));
-    $log->debug( sprintf( 'Status [%s]', $self->{'ready'} ) );
+    # $log->debug('Writing command to queue...');
+    # $log->debug( sprintf( 'Command [%s]', $command ) );
+    # $log->debug( sprintf('Queue size [%s]', $#{ $self->{'commands_queue'} } ));
+    # $log->debug( sprintf( 'Status [%s]', $self->{'ready'} ) );
 
     if ( $#{ $self->{'commands_queue'} } < $queue_size ) {
         push @{ $self->{'commands_queue'} }, $command;

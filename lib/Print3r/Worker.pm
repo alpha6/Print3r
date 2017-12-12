@@ -86,11 +86,12 @@ sub _send_command {
     my $self = shift;
 
     if ( $#{ $self->{'commands_queue'} } >= 0 && $self->{'ready'} ) {
-        $self->{'commands_sent'}++;
+        ++$self->{'commands_sent'};
+        my $command = shift @{ $self->{'commands_queue'} };
         $self->{'printer_handle'}
-          ->push_write( shift @{ $self->{'commands_queue'} } );
+          ->push_write( sprintf("%s\015\012", $command) );
         $self->{'ready'} = 0;
-        $log->debug( sprintf( 'Sent. Status [%s]', $self->{'ready'} ) );
+        $log->debug( sprintf( 'Sent [%s]. Status [%s]', $command, $self->{'ready'} ) );
         return 1;
     }
     elsif ( $#{ $self->{'commands_queue'} } < 0 ) {
@@ -111,7 +112,7 @@ sub write {
     chomp $command;
 
     if ( $#{ $self->{'commands_queue'} } < $queue_size ) {
-        push @{ $self->{'commands_queue'} }, sprintf("%s\015\012", $command);
+        push @{ $self->{'commands_queue'} }, $command;
         return $self->_send_command() if ($self->{'ready'});
         return 1;
         
@@ -129,7 +130,7 @@ sub init_printer {
     my $self = shift;
     $log->debug('Init printer');
     if ( $self->{'ready'} < 0 ) {
-        $self->{'commands_sent'}++;
+        ++$self->{'commands_sent'};
         $self->{'printer_handle'}->push_write("M105\015\012");
         return 1;
     }

@@ -36,6 +36,9 @@ sub connect ( $class, $device_port, $port_speed, $command_callback ) {
     $self->{'printer_port'}   = $port;
     $self->{'commands_queue'} = [];
 
+    $self->{'commands_sent'} = 0;
+    $self->{'commands_ok_recv'} = 0;
+
     $self->{'printer_handle'} = AnyEvent::Handle->new(
         fh       => $port,
         on_error => sub {    #on_error
@@ -60,6 +63,11 @@ sub connect ( $class, $device_port, $port_speed, $command_callback ) {
 
                     if ( $parsed_reply->{'printer_ready'} ) {
                         $self->{'ready'} = 1;
+                        $self->{'commands_ok_recv'}++;
+                        if ($self->{'commands_sent'} < $self->{'commands_ok_recv'}) {
+                            $log->error("Received more ok replies than commands sent!");
+                            $log->error(sprintf("sent [%s] ok [%s]",$self->{'commands_sent'}, $self->{'commands_ok_recv'}));
+                        }
                         $self->_send_command();
                     }
 
@@ -81,6 +89,7 @@ sub _send_command {
    # $log->debug( sprintf( 'Status [%s]', $self->{'ready'} ) );
 
     if ( $#{ $self->{'commands_queue'} } >= 0 && $self->{'ready'} ) {
+        $self->{'commands_sent'}++;
         $self->{'printer_handle'}
           ->push_write( shift @{ $self->{'commands_queue'} } );
         $self->{'ready'} = 0;

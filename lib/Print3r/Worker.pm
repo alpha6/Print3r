@@ -63,7 +63,7 @@ sub connect ( $class, $device_port, $port_speed, $command_callback ) {
 
                     if ( $parsed_reply->{'printer_ready'} ) {
                         $self->{'commands_ok_recv'}++;
-                        if ($self->{'commands_sent'} < $self->{'commands_ok_recv'}) {
+                        if ($self->{'commands_sent'} <= $self->{'commands_ok_recv'}) {
                             $log->error("Received more ok replies than commands sent!");
                             $log->error(sprintf("sent [%s] ok [%s]",$self->{'commands_sent'}, $self->{'commands_ok_recv'}));
                             return;

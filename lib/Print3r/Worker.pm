@@ -44,6 +44,8 @@ sub connect ( $class, $device_port, $port_speed, $command_callback ) {
     $self->{'commands_sent'}    = 0;
     $self->{'commands_ok_recv'} = 0;
 
+    local $/ = "\r\n";
+
     $self->{'printer_handle'} = AnyEvent::Handle->new(
         fh       => $port,
         on_error => sub {    #on_error
@@ -59,7 +61,7 @@ sub connect ( $class, $device_port, $port_speed, $command_callback ) {
             $p_hdl->push_read(
                 line => sub {
                     my ( undef, $line ) = @_;
-                    return if ( $line eq '' );    #Skip empty lines
+                    return 1 if ( $line eq '' );    #Skip empty lines
 
                     $log->debug( sprintf( "Source line [%s]", $line ) );
                     my $parsed_reply = $parser->parse_line($line);
@@ -82,7 +84,7 @@ sub connect ( $class, $device_port, $port_speed, $command_callback ) {
                             );
                             $self->{'commands_ok_recv'} =
                               $self->{'commands_sent'};
-                            return;
+                            return 1;
 
                           #croak "Received more ok replies than commands sent!";
                         }
@@ -91,6 +93,7 @@ sub connect ( $class, $device_port, $port_speed, $command_callback ) {
                     }
 
                     $command_callback->($parsed_reply);
+                    return 1;
                 }
             );
         },

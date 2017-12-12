@@ -21,26 +21,22 @@ sub parse_line ($self, $line) {
         when (/^ok T:(\d+\.\d+) \/\d+\.\d+/) {
             $type = $self->_parse_temp_line($line);
         }
-        when (/^(ok|start)/) {
+        when (/^(?:ok|start)/) {
             $type->{'type'}          = 'ready';
             $type->{'printer_ready'} = 1;
             $type->{'line'}          = $line;
         }
-        when (/halt|kill|stop/i) {
+        when (/\b(?:halt|kill|stop)\b/i) {
             $type->{'type'}          = 'error';
             $type->{'printer_ready'} = 0;
             $type->{'line'}          = $line;
         }
-        when (/reset or M999 required/) {
+        when (/reset/i) {
             $type->{'type'}          = 'error';
             $type->{'printer_ready'} = 0;
             $type->{'line'}          = $line;
         }
-        when ('Watchdog Reset') {
-            $type->{'type'}          = 'error';
-            $type->{'printer_ready'} = 0;
-            $type->{'line'}          = $line;
-        }
+        
         default {
             $type->{'type'}          = 'other';
             $type->{'printer_ready'} = 0;

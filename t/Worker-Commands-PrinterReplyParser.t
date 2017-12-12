@@ -82,9 +82,11 @@ subtest 'parse start' => sub {
 };
 
 subtest 'parse_other' => sub {
-    my $line = 'Marlin 1.1.0-RC8';
+    my @lines = ('Marlin 1.1.0-RC8',
+    'Reporting endstop status');
 
-    cmp_deeply( 
+    for my $line (@lines) {
+        cmp_deeply( 
             {
                 printer_ready => 0,
                 type => 'other',
@@ -93,6 +95,8 @@ subtest 'parse_other' => sub {
             $worker->parse_line($line),
             "Check other [$line]",
         );
+    }
+    
 };
 
 #TODO: Get all error messages from Marlin and Smoothieware

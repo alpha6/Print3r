@@ -11,15 +11,17 @@ use AnyEvent::Handle;
 use AnyEvent::Socket;
 
 use File::Basename;
-use Time::Moment;
+use Tie::File;
 
 use Try::Tiny;
+use Carp;
 
 use Getopt::Long;
 
 use Print3r::Commands;
 use Print3r::Worker;
 use Print3r::Logger;
+use Print3r::Worker::ReadFile;
 
 use Data::Dumper;
 
@@ -38,6 +40,7 @@ my $handle;
 my $printer_handle = undef;
 my $printing_file  = undef;
 my $port_handle    = undef;
+my $reader         = undef;
 my %timers;
 
 my $print_file_path = undef;
@@ -60,7 +63,8 @@ my $worker;
 
 sub get_line {
     my $start_line = shift || 0;
-    $log->debug("Start line is [$start_line]");
+
+    #$log->debug("Start line is [$start_line]");
 
     while ( my $line = <$printing_file> ) {
         $line_number++;
@@ -113,6 +117,7 @@ sub set_heartbeat {
 
 sub process_command {
     my $command = shift;
+    state $prev_command_accepted = 1;
 
     # Check that the printer is ready for new commands and set flag
     if ( exists( $command->{'printer_ready'} ) ) {
@@ -136,19 +141,29 @@ sub process_command {
 
             $line_number = 0;
             $plog        = get_printing_logger();
-            if ( my $next_command = get_line( $command->{'start_line'} || 0 ) )
-            {
-                $plog->info( 'sent: ' . $next_command );
-                $worker->write("$next_command\n");
+
+            #Rewind to line when recovering print
+            if ( $command->{'start_line'} > 0 ) {
+                $reader->rewind( $command->{'start_line'} );
+            }
+
+            if ( !$reader->has_next ) {
+                croak "No lines to print is available!";
+            }
+
+            my $gcode_line;
+
+            if ( $prev_command_accepted > 0 ) {
+                while ( $gcode_line = $reader->next() ) {
+                    last if ( $gcode_line =~ m/^[G|M|T].*/ );
+                }
+
             }
             else {
-                $handle->push_write(
-                    json => {
-                        command => 'error',
-                        message => 'No file to print is available'
-                    }
-                );
+                $gcode_line = $reader->current_line();
             }
+            $plog->info( 'sent: ' . $gcode_line );
+            $prev_command_accepted = $worker->write($gcode_line);
 
         }
         catch {
@@ -159,298 +174,316 @@ sub process_command {
     }
     elsif ( !$is_print_paused && $command->{'printer_ready'} ) {
         if ( defined($printing_file) && $is_printer_ready ) {
-            my $next_command = get_line();
 
             try {
-                #The function get_line return number only if print ended
-                if ( $next_command !~ /^\d+$/ ) {
-                    $plog->info( 'sent: ' . $next_command );
-                    $worker->write("$next_command\n");
+
+                my $gcode_line;
+
+                if ( $prev_command_accepted > 0 ) {
+                    if ( $reader->has_next ) {
+                        while ( $gcode_line = $reader->next() ) {
+                            last if ( $gcode_line =~ m/^[G|M|T].*/ );
+                        }
+                    }
+                    else {
+                        $handle->push_write(
+                            json => {
+                                command => 'message',
+                                line =>
+                                  sprintf(
+                                    'Printing has ended. Printed [%d] lines.',
+                                    $reader->current ),
+                            }
+                        );
+                        undef $printing_file;
+                        return;
+                    }
+
                 }
                 else {
-                    $handle->push_write(
-                        json => {
-                            command => 'message',
-                            line =>
-                              sprintf(
-                                'Printing has ended. Printed [%d] lines.',
-                                $next_command ),
-                        }
-                    );
-                    undef $printing_file;
+                    $gcode_line = $reader->current_line();
                 }
+                $plog->info( 'sent: ' . $gcode_line );
+                $prev_command_accepted = $worker->write($gcode_line);
+
             }
             catch {
                 $plog->error( sprintf( 'Printing error: %s', $_ ) );
                 $is_print_paused = 1;
-                $handle->push_write( json =>
-                      { command => 'error', message => "Printing error: $_" } );
-            };
+                $handle->push_write(
+                    json => {
+                        command => 'error',
+                        message => sprintf(
+                            'Printing error: %s in line %s',
+                            $_, $reader->current)
+                        }
+                        );
+                };
 
+            }
         }
+        elsif ( $command->{'type'} eq 'error' ) {
+
+            # If got error: pause print and send error message to master.
+            $is_print_paused = 1;
+
+            $handle->push_write(
+                json => {
+                    command => 'error',
+                    line =>
+                      sprintf( 'Print emergency stopped!. Printer message: %d',
+                        $command->{'line'} ),
+                }
+            );
+        }
+        elsif ( $command->{'type'} eq 'pause' ) {
+            $is_print_paused = 1;
+
+            $log->info('Printing has paused.');
+            $plog->warn('Printing has paused.');
+            $handle->push_write(
+                json => {
+                    command => 'message',
+                    line    => sprintf('Printing has paused!'),
+                }
+            );
+        }
+        elsif ( $command->{'type'} eq 'resume' ) {
+            $is_print_paused = 0;
+
+            $log->info('Printing has resumed.');
+            $plog->warn('Printing has resumed.');
+            $handle->push_write(
+                json => {
+                    command => 'message',
+                    line    => sprintf('Printing has resumed!'),
+                }
+            );
+
+            # Send command to resume printing
+            $worker->write('M105');
+        }
+        elsif ( $command->{'type'} eq 'stop' ) {
+            $log->info('Print stopped.');
+            $plog->warn('Print stopped.');
+
+            $is_printer_ready = 0;
+            undef($printing_file);
+
+            $handle->push_write(
+                json => {
+                    command => 'message',
+                    line    => sprintf('Printing has stopped!'),
+                }
+            );
+        }
+        else {
+            #$plog->info('other: '.$command->{'line'}) if (defined $plog);
+            $handle->push_write(
+                json => {
+                    command => 'other',
+                    line    => $command->{'line'},
+                }
+            );
+        }
+
+        return;
     }
-    elsif ( $command->{'type'} eq 'error' ) {
 
-        # If got error: pause print and send error message to master.
-        $is_print_paused = 1;
+    sub connect_to_printer {
+        try {
+            $worker = Print3r::Worker->connect( $printer_port, $port_speed,
+                \&process_command );
+        }
+        catch {
+            say STDERR "Error: $_";
+            $handle->push_write(
+                json => {
+                    command => 'connect',
+                    status  => 'error',
+                    message => sprintf(
+                        'Connection to port [%s] failed. Reason [%s]',
+                        $printer_port, $_
+                    ),
+                    pid   => $$,
+                    port  => $printer_port,
+                    speed => $port_speed
+                }
+            );
 
-        $handle->push_write(
-            json => {
-                command => 'error',
-                line =>
-                  sprintf( 'Print emergency stopped!. Printer message: %d',
-                    $command->{'line'} ),
-            }
-        );
-    }
-    elsif ( $command->{'type'} eq 'pause' ) {
-        $is_print_paused = 1;
+            #TODO: make workers reusable
+            shutdown_worker(1);
+        };
 
-        $log->info('Printing has paused.');
-        $plog->warn('Printing has paused.');
-        $handle->push_write(
-            json => {
-                command => 'message',
-                line    => sprintf('Printing has paused!'),
-            }
-        );
-    }
-    elsif ( $command->{'type'} eq 'resume' ) {
-        $is_print_paused = 0;
-
-        $log->info('Printing has resumed.');
-        $plog->warn('Printing has resumed.');
-        $handle->push_write(
-            json => {
-                command => 'message',
-                line    => sprintf('Printing has resumed!'),
-            }
-        );
-
-        # Send command to resume printing
-        $worker->write("M105\n");
-    }
-    elsif ( $command->{'type'} eq 'stop' ) {
-        $log->info('Print stopped.');
-        $plog->warn('Print stopped.');
-
-        $is_printer_ready = 0;
-        undef($printing_file);
-
-        $handle->push_write(
-            json => {
-                command => 'message',
-                line    => sprintf('Printing has stopped!'),
-            }
-        );
-    }
-    else {
-        #$plog->info('other: '.$command->{'line'}) if (defined $plog);
-        $handle->push_write(
-            json => {
-                command => 'other',
-                line    => $command->{'line'},
-            }
-        );
-    }
-
-    return;
-}
-
-sub connect_to_printer {
-    try {
-        $worker = Print3r::Worker->connect( $printer_port, $port_speed,
-            \&process_command );
-    }
-    catch {
-        say STDERR "Error: $_";
         $handle->push_write(
             json => {
                 command => 'connect',
-                status  => 'error',
-                message => sprintf(
-                    'Connection to port [%s] failed. Reason [%s]',
-                    $printer_port, $_
-                ),
-                pid   => $$,
-                port  => $printer_port,
-                speed => $port_speed
+                status  => 'ready',
+                message => sprintf( 'Connected to [%s]', $printer_port ),
+                pid     => $$,
+                port    => $printer_port,
+                speed   => $port_speed
             }
         );
 
-        #TODO: make workers reusable
-        shutdown_worker(1);
-    };
+        #Start communication with the printer
+        $worker->write('M105');
 
-    $handle->push_write(
-        json => {
-            command => 'connect',
-            status  => 'ready',
-            message => sprintf( 'Connected to [%s]', $printer_port ),
-            pid     => $$,
-            port    => $printer_port,
-            speed   => $port_speed
+        return;
+    }
+
+    my $commands = Print3r::Commands->new(
+        {
+            print => sub {
+                my $self   = shift;
+                my $params = shift;
+                $log->info(
+                    sprintf( 'Starting print. File: %s', $params->{'file'} ) );
+
+                open( $printing_file, '<', $params->{'file'} ) or die $!;
+                $reader = Print3r::Worker::ReadFile->new($printing_file);
+
+                $print_file_path = $params->{'file'};
+
+                process_command( { type => 'start_printing' } );
+            },
+            send => sub {
+                my $self   = shift;
+                my $params = shift;
+                $log->info( sprintf( 'External G-Code: %s', Dumper($params) ) );
+                $worker->write( $params->{'value'} );
+            },
+            disconnect => sub {
+                $log->info('Disconnecting...');
+                shutdown_worker(0);
+            },
+            pause => sub {
+                process_command( { type => 'pause' } );
+            },
+            resume => sub {
+                process_command( { type => 'resume' } );
+            },
+            recover => sub {    #Recover printing if worker(or printer) died
+                my $self   = shift;
+                my $params = shift;
+                $log->info(
+                    sprintf( 'Recovering print. File: %s', $params->{'file'} )
+                );
+
+                my $start_line = 0;
+                try {
+                    open( my $rec_fh, '<',
+                        sprintf( '%s.RECOVER', $params->{'file'} ) );
+
+                    $start_line = <$rec_fh>;
+                    chomp $start_line;
+                    close $rec_fh;
+
+                    unlink sprintf( '%s.RECOVER', $params->{'file'} );
+
+                }
+                catch {
+                    $log->error(
+                        sprintf( 'can not open RECOVER file for file: %s',
+                            $params->{'file'} )
+                    );
+                    $log->error( sprintf('Recovering aborted') );
+                    return;
+                };
+
+                open( $printing_file, '<', $params->{'file'} ) or die $!;
+
+                $print_file_path = $params->{'file'};
+
+                process_command(
+                    { type => 'start_printing', start_line => $start_line } );
+            },
+            stop => sub {
+                $log->info('Stopping print...');
+                process_command( { type => 'stop' } );
+            },
+            status => sub {
+                $worker->write('M105');
+
+            }
         }
     );
 
-    #Start communication with the printer
-    $worker->write("M105\n");
+    #Getting temperature from the printer
+    my $test_timer = AnyEvent->timer(
+        after    => 20,
+        interval => 20,
+        cb       => sub {
 
-    return;
-}
-
-my $commands = Print3r::Commands->new(
-    {
-        print => sub {
-            my $self   = shift;
-            my $params = shift;
-            $log->info(
-                sprintf( 'Starting print. File: %s', $params->{'file'} ) );
-            open( $printing_file, '<', $params->{'file'} ) or die $!;
-
-            $print_file_path = $params->{'file'};
-
-            process_command( { type => 'start_printing' } );
-        },
-        send => sub {
-            my $self   = shift;
-            my $params = shift;
-            $log->info( sprintf( 'External G-Code: %s', Dumper($params) ) );
-            $worker->write( sprintf( "%s\n", $params->{'value'} ) );
-        },
-        disconnect => sub {
-            $log->info('Disconnecting...');
-            shutdown_worker(0);
-        },
-        pause => sub {
-            process_command( { type => 'pause' } );
-        },
-        resume => sub {
-            process_command( { type => 'resume' } );
-        },
-        recover => sub {    #Recover printing if worker(or printer) died
-            my $self   = shift;
-            my $params = shift;
-            $log->info(
-                sprintf( 'Recovering print. File: %s', $params->{'file'} ) );
-
-            my $start_line = 0;
-            try {
-                open( my $rec_fh, '<',
-                    sprintf( '%s.RECOVER', $params->{'file'} ) );
-
-                $start_line = <$rec_fh>;
-                chomp $start_line;
-                close $rec_fh;
-
-                unlink sprintf( '%s.RECOVER', $params->{'file'} );
-
-            }
-            catch {
-                $log->error(
-                    sprintf( 'can not open RECOVER file for file: %s',
-                        $params->{'file'} )
-                );
-                $log->error( sprintf('Recovering aborted') );
-                return;
-            };
-
-            open( $printing_file, '<', $params->{'file'} ) or die $!;
-
-            $print_file_path = $params->{'file'};
-
-            process_command(
-                { type => 'start_printing', start_line => $start_line } );
-        },
-        stop => sub {
-            $log->info('Stopping print...');
-            process_command( { type => 'stop' } );
-        },
-        status => sub {
-            $worker->write("M105\n");
-
-        }
-    }
-);
-
-#Getting temperature from the printer
-my $test_timer = AnyEvent->timer(
-    after    => 20,
-    interval => 20,
-    cb       => sub {
-
-        # say sprintf("Alive %s", time());
-        if ( defined $worker ) {
-            if ( !$in_command_flag ) {
-
-                #$worker->write("M105\n");
+            # say sprintf("Alive %s", time());
+            if ( defined $worker ) {
+                $worker->write('M105');
             }
         }
-    }
-);
+    );
 
-# Connect to master
-tcp_connect(
-    '127.0.0.1',
-    44244,
-    sub {
-        my ($fh) = @_
-          or die "unable to connect: $!";
+    # Connect to master
+    tcp_connect(
+        '127.0.0.1',
+        44244,
+        sub {
+            my ($fh) = @_
+              or die "unable to connect: $!";
 
-        $handle = AnyEvent::Handle->new(
-            fh      => $fh,
-            poll    => 'r',
-            on_read => sub {    #Process master command
-                $handle->push_read(
-                    json => sub {
-                        my ( undef, $data ) = @_;
-                        my $name   = lc( $data->{'command'} );
-                        my $params = $data->{'params'};
-                        $commands->$name($params);
-                    }
-                );
+            $handle = AnyEvent::Handle->new(
+                fh      => $fh,
+                poll    => 'r',
+                on_read => sub {    #Process master command
+                    $handle->push_read(
+                        json => sub {
+                            my ( undef, $data ) = @_;
+                            my $name   = lc( $data->{'command'} );
+                            my $params = $data->{'params'};
+                            $commands->$name($params);
+                        }
+                    );
 
-            },
-            on_eof => sub {
-                my ($hdl) = @_;
-                $log->error('Connecton to server was closed.');
-                $hdl->destroy();
-            },
-            on_error => sub {
-                my $hdl = shift;
-                $log->error('Lost connecton to server.');
-                $hdl->destroy();
-            },
-        );
+                },
+                on_eof => sub {
+                    my ($hdl) = @_;
+                    $log->error('Connecton to server was closed.');
+                    $hdl->destroy();
+                },
+                on_error => sub {
+                    my $hdl = shift;
+                    $log->error('Lost connecton to server.');
+                    $hdl->destroy();
+                },
+            );
 
-        # set_heartbeat();
-        connect_to_printer();
-    }
-);
-
-$cv->recv;
-
-sub shutdown_worker {
-    my $status = shift || 0;
-    try {
-        if ( defined $worker ) {
-            $worker->close();
+            # set_heartbeat();
+            connect_to_printer();
         }
-    }
-    catch {
-        $log->error('Port handle already destroyed!');
-    };
+    );
 
-    try {
-        if ( defined $print_file_path ) {
-            open( my $fh, '>', sprintf( '%s.RECOVER', $print_file_path ) )
-              or die $!;
-            print $fh $line_number;
-            close $fh;
+    $cv->recv;
+
+    sub shutdown_worker {
+        my $status = shift || 0;
+        try {
+            if ( defined $worker ) {
+                $worker->close();
+            }
         }
+        catch {
+            $log->error('Port handle already destroyed!');
+        };
 
-    };
+        try {
+            if ( defined $print_file_path ) {
+                open( my $fh, '>', sprintf( '%s.RECOVER', $print_file_path ) )
+                  or die $!;
+                print $fh $line_number;
+                close $fh;
+            }
 
-    $handle->destroy();
-    exit $status;
-}
+        };
+
+        $handle->destroy();
+        exit $status;
+    }

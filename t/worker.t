@@ -19,14 +19,14 @@ if( !defined $testing_port ) {
 
 my $reply;
 my $worker = Print3r::Worker->connect( $testing_port, 115200,
-    sub { say STDERR "reply: ".Dumper(\@_); ($reply) = @_} );
+    sub { ($reply) = @_} );
 
 subtest 'creates correct object' => sub {
     isa_ok( $worker, 'Print3r::Worker' );
 };
 
 subtest 'check_version' => sub {
-    is( $worker->VERSION, 'v0.0.4',
+    is( $worker->VERSION, 'v0.0.5',
         'check that the test is for suitable module version' );
 };
 

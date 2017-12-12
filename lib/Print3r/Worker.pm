@@ -7,7 +7,7 @@ no if $] >= 5.018, warnings => 'experimental::smartmatch';
 use feature qw(signatures);
 no warnings qw(experimental::signatures);
 
-our $VERSION = version->declare('v0.0.4');
+our $VERSION = version->declare('v0.0.5');
 
 use JSON;
 use AnyEvent::Handle;
@@ -67,6 +67,7 @@ sub connect ( $class, $device_port, $port_speed, $command_callback ) {
                         if ($self->{'commands_sent'} < $self->{'commands_ok_recv'}) {
                             $log->error("Received more ok replies than commands sent!");
                             $log->error(sprintf("sent [%s] ok [%s]",$self->{'commands_sent'}, $self->{'commands_ok_recv'}));
+                            croak "Received more ok replies than commands sent!";
                         }
                         $self->_send_command();
                     }
@@ -84,10 +85,6 @@ sub connect ( $class, $device_port, $port_speed, $command_callback ) {
 sub _send_command {
     my $self = shift;
 
-   # $log->debug('Sending command from queue...');
-   # $log->debug( sprintf('Queue size [%s]', $#{ $self->{'commands_queue'} } ));
-   # $log->debug( sprintf( 'Status [%s]', $self->{'ready'} ) );
-
     if ( $#{ $self->{'commands_queue'} } >= 0 && $self->{'ready'} ) {
         $self->{'commands_sent'}++;
         $self->{'printer_handle'}
@@ -98,7 +95,7 @@ sub _send_command {
     }
     elsif ( $#{ $self->{'commands_queue'} } < 0 ) {
         $log->debug("Queue is empty!");
-        return 0;
+        return -1;
     }
     else {
         $log->debug(
@@ -111,16 +108,13 @@ sub _send_command {
 sub write {
     my $self    = shift;
     my $command = shift;
-
-   # $log->debug('Writing command to queue...');
-   # $log->debug( sprintf( 'Command [%s]', $command ) );
-   # $log->debug( sprintf('Queue size [%s]', $#{ $self->{'commands_queue'} } ));
-   # $log->debug( sprintf( 'Status [%s]', $self->{'ready'} ) );
+    chomp $command;
 
     if ( $#{ $self->{'commands_queue'} } < $queue_size ) {
-        push @{ $self->{'commands_queue'} }, $command;
-        $self->_send_command() if ( $self->{'ready'} );
+        push @{ $self->{'commands_queue'} }, sprintf("%s\015\012", $command);
+        return $self->_send_command() if ($self->{'ready'});
         return 1;
+        
     }
     else {
         $log->debug(
@@ -134,6 +128,7 @@ sub write {
 sub init_printer {
     my $self = shift;
     if ( $self->{'ready'} < 0 ) {
+        $self->{'commands_sent'}++;
         $self->{'printer_handle'}->push_write("M105\015\012");
         return 1;
     }

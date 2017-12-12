@@ -42,7 +42,7 @@ sub connect ( $class, $device_port, $port_speed, $command_callback ) {
     $self->{'commands_queue'} = [];
 
     $self->{'commands_sent'}    = 0;
-    $self->{'commands_ok_recv'} = 0;
+    $self->{'commands_ok_recv'} = -1;
 
     local $/ = "\r\n";
 

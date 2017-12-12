@@ -127,6 +127,7 @@ sub write {
 
 sub init_printer {
     my $self = shift;
+    $log->debug('Init printer');
     if ( $self->{'ready'} < 0 ) {
         $self->{'commands_sent'}++;
         $self->{'printer_handle'}->push_write("M105\015\012");

@@ -61,29 +61,6 @@ GetOptions(
 
 my $worker;
 
-sub get_line {
-    my $start_line = shift || 0;
-
-    #$log->debug("Start line is [$start_line]");
-
-    while ( my $line = <$printing_file> ) {
-        $line_number++;
-
-        if ( $line_number < $start_line ) {
-            next;
-        }
-
-        if ( $line =~ m/^[G|M|T].*/ ) {
-            chomp $line;
-            $plog->trace( sprintf( 'read [%s]', $line ) );
-            $line_number++;
-            return $line;
-        }
-    }
-
-    return $line_number;
-}
-
 sub get_printing_logger {
     my $filename = fileparse( $print_file_path, qr/\.[^.]*/ );
 
@@ -294,6 +271,7 @@ sub process_command {
         try {
             $worker = Print3r::Worker->connect( $printer_port, $port_speed,
                 \&process_command );
+            $worker->init_printer();
         }
         catch {
             say STDERR "Error: $_";

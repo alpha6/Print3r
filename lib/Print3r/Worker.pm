@@ -23,7 +23,7 @@ my $queue_size = 32;    #queue size is 32 commands by default
 my $parser = Print3r::Worker::Commands::PrinterReplyParser->new();
 my $log = Print3r::Logger->get_logger( 'stderr', level => 'debug' );
 
-sub connect($class, $device_port, $port_speed, $command_callback) {
+sub connect ( $class, $device_port, $port_speed, $command_callback ) {
     $log->debug( 'connect: ' . Dumper( \@_ ) );
 
     my $self = { ready => -1, };
@@ -51,6 +51,9 @@ sub connect($class, $device_port, $port_speed, $command_callback) {
             $p_hdl->push_read(
                 line => sub {
                     my ( undef, $line ) = @_;
+                    return if ( $line eq '' );    #Skip empty lines
+
+                    $log->debug( sprintf( "Source line [%s]", $line ) );
                     my $parsed_reply = $parser->parse_line($line);
 
                     $log->debug( 'Parsed reply: ' . Dumper($parsed_reply) );
@@ -73,9 +76,9 @@ sub connect($class, $device_port, $port_speed, $command_callback) {
 sub _send_command {
     my $self = shift;
 
-    $log->debug('Sending command from queue...');
-    $log->debug( sprintf('Queue size [%s]', $#{ $self->{'commands_queue'} } ));
-    $log->debug( sprintf( 'Status [%s]', $self->{'ready'} ) );
+   # $log->debug('Sending command from queue...');
+   # $log->debug( sprintf('Queue size [%s]', $#{ $self->{'commands_queue'} } ));
+   # $log->debug( sprintf( 'Status [%s]', $self->{'ready'} ) );
 
     if ( $#{ $self->{'commands_queue'} } >= 0 && $self->{'ready'} ) {
         $self->{'printer_handle'}
@@ -84,20 +87,26 @@ sub _send_command {
         $log->debug( sprintf( 'Sent. Status [%s]', $self->{'ready'} ) );
         return 1;
     }
+    elsif ( $#{ $self->{'commands_queue'} } < 0 ) {
+        $log->debug("Queue is empty!");
+        return 0;
+    }
+    else {
+        $log->debug(
+            sprintf( 'Printer is not ready. Status [%s]', $self->{'ready'} ) );
+        return 0;
+    }
 
-    $log->debug(
-        sprintf( 'Printer is not ready. Status [%s]', $self->{'ready'} ) );
-    return 0;
 }
 
 sub write {
     my $self    = shift;
     my $command = shift;
 
-    $log->debug('Writing command to queue...');
-    $log->debug( sprintf( 'Command [%s]', $command ) );
-    $log->debug( sprintf('Queue size [%s]', $#{ $self->{'commands_queue'} } ));
-    $log->debug( sprintf( 'Status [%s]', $self->{'ready'} ) );
+   # $log->debug('Writing command to queue...');
+   # $log->debug( sprintf( 'Command [%s]', $command ) );
+   # $log->debug( sprintf('Queue size [%s]', $#{ $self->{'commands_queue'} } ));
+   # $log->debug( sprintf( 'Status [%s]', $self->{'ready'} ) );
 
     if ( $#{ $self->{'commands_queue'} } < $queue_size ) {
         push @{ $self->{'commands_queue'} }, $command;

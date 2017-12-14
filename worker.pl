@@ -119,23 +119,23 @@ sub process_command {
             $line_number = 0;
             $plog        = get_printing_logger();
 
+            $log->debug(sprintf('stat [%s]', $prev_command_accepted));
+
             #Rewind to line when recovering print
             if ( $command->{'start_line'} > 0 ) {
                 $reader->rewind( $command->{'start_line'} );
             }
+            $log->debug('rewind done');
 
             if ( !$reader->has_next ) {
                 croak "No lines to print is available!";
             }
 
+            $log->debug('has next');
             my $gcode_line;
 
             if ( $prev_command_accepted > 0 ) {
-                while ( $reader->has_next ) {
-                    $gcode_line = $reader->next();
-                    last if ( $gcode_line =~ m/^[G|M|T].*/ );
-                }
-
+                $gcode_line = $reader->next();
             }
             else {
                 $gcode_line = $reader->current_line();
@@ -145,6 +145,7 @@ sub process_command {
 
         }
         catch {
+            $log->error("Printing error: $_");
             $handle->push_write( json =>
                   { command => 'error', message => "Printing error: $_" } );
         };
@@ -159,10 +160,7 @@ sub process_command {
 
                 if ( $prev_command_accepted > 0 ) {
                     if ( $reader->has_next ) {
-                        while ( $reader->has_next ) {
-                            $gcode_line = $reader->next();
-                            last if ( $gcode_line =~ m/^[G|M|T].*/ );
-                        }
+                        $gcode_line = $reader->next();
                     }
                     else {
                         $handle->push_write(
@@ -326,7 +324,7 @@ my $commands = Print3r::Commands->new(
 
             $print_file_path = $params->{'file'};
 
-            process_command( { type => 'start_printing' } );
+            process_command( { type => 'start_printing', start_line => 0 } );
         },
         send => sub {
             my $self   = shift;

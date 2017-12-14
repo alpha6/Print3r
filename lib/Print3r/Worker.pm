@@ -133,6 +133,8 @@ sub write {
     my $command = shift;
     chomp $command;
 
+    return 1 if ( $command !~ m/^[G|M|T].*/ );
+
     if ( $#{ $self->{'commands_queue'} } < $queue_size ) {
         push @{ $self->{'commands_queue'} }, $command;
         return $self->_send_command() if ( $self->{'ready'} );

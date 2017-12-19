@@ -32,7 +32,7 @@ sub has_next($self) {
 }
 
 sub next($self) {
-    return undef if ($self->{'current'} >= $self->{'max_line'});
+    return if ($self->{'current'} >= $self->{'max_line'});
     $self->{'current'}++;
 
     my $line =  $self->{'content'}[$self->{'current'}];

@@ -20,7 +20,7 @@ use constant SPACE => q{ };
 
 sub connect ( $class, $device_port, $port_speed ) {
 
-    
+
 
     my $stty = IO::Termios->open($device_port);
     # my $mode = sprintf('%s,8,n,1', $port_speed);
@@ -29,10 +29,10 @@ sub connect ( $class, $device_port, $port_speed ) {
     # $stty->setflag_echo( 0 );
 
     my @params = qw( 115200 -parenb -parodd -cmspar cs8 hupcl -cstopb cread clocal -crtscts
-ignbrk -brkint -ignpar -parmrk -inpck -istrip -inlcr -igncr -icrnl -ixon -ixoff -iuclc -ixany -imaxbel -iutf8
--opost -olcuc -ocrnl -onlcr -onocr -onlret -ofill -ofdel nl0 cr0 tab0 bs0 vt0 ff0
--isig -icanon -iexten -echo -echoe -echok -echonl -noflsh -xcase -tostop -echoprt -echoctl -echoke -flusho -extproc
-    );
+    ignbrk -brkint -ignpar -parmrk -inpck -istrip -inlcr -igncr -icrnl -ixon -ixoff -iuclc -ixany -imaxbel -iutf8
+    -opost -olcuc -ocrnl -onlcr -onocr -onlret -ofill -ofdel nl0 cr0 tab0 bs0 vt0 ff0
+    -isig -icanon -iexten -echo -echoe -echok -echonl -noflsh -xcase -tostop -echoprt -echoctl -echoke -flusho -extproc
+        );
 
     my $command = sprintf('stty -F %s %s', $device_port, join(SPACE, @params));
 
@@ -64,7 +64,7 @@ ignbrk -brkint -ignpar -parmrk -inpck -istrip -inlcr -igncr -icrnl -ixon -ixoff 
     # # $c_flag &= ~CSIZE;
     # # # $c_flag &= ~CRTSCTS;
     # # $c_flag |= CS8;
-    
+
     # # $term->setcflag($c_flag);
 
     # $term->setcflag(

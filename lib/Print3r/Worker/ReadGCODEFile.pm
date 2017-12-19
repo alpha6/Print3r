@@ -1,4 +1,4 @@
-package Print3r::Worker::ReadFile;
+package Print3r::Worker::ReadGCODEFile;
 
 use strict;
 use warnings;
@@ -32,7 +32,12 @@ sub has_next($self) {
 }
 
 sub next($self) {
-    return $self->{'content'}[$self->{'current'}++];
+    return undef if ($self->{'current'} >= $self->{'max_line'});
+    $self->{'current'}++;
+
+    my $line =  $self->{'content'}[$self->{'current'}];
+    $line = $self->next() if ($line !~ m/^[G|M|T].*/); #return only GCODE lines
+    return $line;
 }
 
 sub current_line($self) {

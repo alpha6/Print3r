@@ -21,7 +21,7 @@ use Getopt::Long;
 use Print3r::Commands;
 use Print3r::Worker;
 use Print3r::Logger;
-use Print3r::Worker::ReadFile;
+use Print3r::Worker::ReadGCODEFile;
 
 use Data::Dumper;
 
@@ -68,10 +68,10 @@ sub get_printing_logger {
 
     my $log_file = sprintf( '%s_%s.log', $filename, $date );
     my $logger = Print3r::Logger->get_logger(
-        'file',
+        'stderr',
         file   => $log_file,
         synced => 1,
-        level  => 'info'
+        level  => 'debug'
     );
     $logger->set_level('debug');
 
@@ -114,12 +114,13 @@ sub process_command {
     }
 
     if ( $command->{'type'} eq 'start_printing' ) {
+        $log->info('Starting print');
         try {
 
             $line_number = 0;
             $plog        = get_printing_logger();
 
-            $log->debug(sprintf('stat [%s]', $prev_command_accepted));
+            $log->debug( sprintf( 'stat [%s]', $prev_command_accepted ) );
 
             #Rewind to line when recovering print
             if ( $command->{'start_line'} > 0 ) {
@@ -140,8 +141,10 @@ sub process_command {
             else {
                 $gcode_line = $reader->current_line();
             }
-            $plog->info( 'sent: ' . $gcode_line );
+
             $prev_command_accepted = $worker->write($gcode_line);
+            $plog->info( 'sent: ' . $gcode_line );
+            $log->info( 'sent: ' . $gcode_line );
 
         }
         catch {
@@ -180,8 +183,10 @@ sub process_command {
                 else {
                     $gcode_line = $reader->current_line();
                 }
-                $plog->info( 'sent: ' . $gcode_line );
+
                 $prev_command_accepted = $worker->write($gcode_line);
+                $plog->info( 'sent: ' . $gcode_line );
+                $log->info( 'sent: ' . $gcode_line );
 
             }
             catch {
@@ -320,7 +325,7 @@ my $commands = Print3r::Commands->new(
                 sprintf( 'Starting print. File: %s', $params->{'file'} ) );
 
             open( $printing_file, '<', $params->{'file'} ) or die $!;
-            $reader = Print3r::Worker::ReadFile->new($printing_file);
+            $reader = Print3r::Worker::ReadGCODEFile->new($printing_file);
 
             $print_file_path = $params->{'file'};
 

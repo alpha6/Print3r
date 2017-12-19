@@ -7,7 +7,7 @@ no if $] >= 5.018, warnings => 'experimental::smartmatch';
 use feature qw(signatures);
 no warnings qw(experimental::signatures);
 
-our $VERSION = version->declare('v0.0.5');
+our $VERSION = version->declare('v0.0.6');
 
 use JSON;
 use AnyEvent::Handle;
@@ -23,7 +23,7 @@ my $queue_size = 32;    #queue size is 32 commands by default
 my $parser = Print3r::Worker::Commands::PrinterReplyParser->new();
 my $log    = Print3r::Logger->get_logger(
     'file',
-    file   => 'worker_m.log',
+    file   => 'worker.log',
     synced => 1,
     level  => 'debug'
 );
@@ -84,7 +84,7 @@ sub connect ( $class, $device_port, $port_speed, $command_callback ) {
                             );
                             $self->{'commands_ok_recv'} =
                               $self->{'commands_sent'};
-                            return 1;
+                            # return 1;
 
                           #croak "Received more ok replies than commands sent!";
                         }
@@ -133,7 +133,10 @@ sub write {
     my $command = shift;
     chomp $command;
 
-    return 1 if ( $command !~ m/^[G|M|T].*/ );
+    if ( $command !~ m/^[G|M|T].*/ ) {
+        $log->debug(sprintf('not a gcode [%s]', $command));
+        return 1;
+    }
 
     if ( $#{ $self->{'commands_queue'} } < $queue_size ) {
         push @{ $self->{'commands_queue'} }, $command;
@@ -141,13 +144,13 @@ sub write {
         return 1;
 
     }
-    else {
-        $log->debug(
-            sprintf( 'Queue size more than limit',
-                $#{ $self->{'commands_queue'} } )
-        );
-        return 0;
-    }
+    
+    $log->debug(
+        sprintf( 'Queue size more than limit',
+            $#{ $self->{'commands_queue'} } )
+    );
+    return 0;
+    
 }
 
 sub init_printer {

@@ -8,19 +8,19 @@ use Test::More;
 use Test::Deep;
 use File::Temp qw/ tempfile tempdir /;
 
-use Print3r::Worker::ReadFile;
+use Print3r::Worker::ReadGCODEFile;
 
 use Data::Dumper;
 
 my $fh = tempfile();
 for (1..10) {
-    print $fh "$_\n";
+    print $fh "G1 X$_ Y$_ Z$_\n";
 }
 
-my $reader = Print3r::Worker::ReadFile->new($fh);
+my $reader = Print3r::Worker::ReadGCODEFile->new($fh);
 
 subtest 'creates correct object' => sub {
-    isa_ok($reader, 'Print3r::Worker::ReadFile');
+    isa_ok($reader, 'Print3r::Worker::ReadGCODEFile');
 };
 
 
@@ -38,16 +38,16 @@ subtest 'current_start' => sub {
 };
 
 subtest 'next' => sub {
-    my $i = 0;
+    my $i = 1;
     while($reader->has_next()) {
         $i++;
-        is($reader->next(), $i, 'Next element');
+        is($reader->next(), "G1 X$i Y$i Z$i", 'Next element');
     }  
-    is($i, 9, '9 lines');
+    is($i, 10, '9 lines');
 };
 
 subtest 'current_end' => sub {
-    is($reader->current(), 9, 'Current is  at test file end');
+    is($reader->current(), 9, 'Current is at test file end');
 };
 
 subtest 'rewind' => sub {
@@ -56,8 +56,8 @@ subtest 'rewind' => sub {
 };
 
 subtest 'current_line' => sub {
-    is($reader->current_line(), 1, 'Current has value 1');
-    is($reader->current_line(), 1, 'Current still has value 1');
+    is($reader->current_line(), "G1 X1 Y1 Z1", 'Current has value 1');
+    is($reader->current_line(), "G1 X1 Y1 Z1", 'Current still has value 1');
 };
 
 subtest 'rewind_to_line' => sub {

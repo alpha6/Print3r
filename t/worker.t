@@ -26,7 +26,7 @@ subtest 'creates correct object' => sub {
 };
 
 subtest 'check_version' => sub {
-    is( $worker->VERSION, 'v0.0.5',
+    is( $worker->VERSION, 'v0.0.6',
         'check that the test is for suitable module version' );
 };
 

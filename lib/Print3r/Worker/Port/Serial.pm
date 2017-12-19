@@ -16,6 +16,8 @@ use IO::Handle;
 
 # use constant CRTSCTS => 020000000000;
 
+use constant SPACE => q{ };
+
 sub connect ( $class, $device_port, $port_speed ) {
 
     
@@ -32,7 +34,7 @@ ignbrk -brkint -ignpar -parmrk -inpck -istrip -inlcr -igncr -icrnl -ixon -ixoff 
 -isig -icanon -iexten -echo -echoe -echok -echonl -noflsh -xcase -tostop -echoprt -echoctl -echoke -flusho -extproc
     );
 
-    my $command = sprintf('stty -F %s %s', $device_port, join ' ', @params);
+    my $command = sprintf('stty -F %s %s', $device_port, join(SPACE, @params));
 
     print STDERR "stty call: $command\n";
 

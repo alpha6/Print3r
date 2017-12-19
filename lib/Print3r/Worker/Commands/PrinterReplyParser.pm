@@ -10,8 +10,8 @@ no warnings qw(experimental::signatures);
 our $VERSION = version->declare('v0.0.1');
 
 sub new {
-	my $class = shift;
-	bless {}, $class;
+    my $class = shift;
+    bless {}, $class;
 }
 
 sub parse_line ($self, $line) {
@@ -36,7 +36,7 @@ sub parse_line ($self, $line) {
             $type->{'printer_ready'} = 0;
             $type->{'line'}          = $line;
         }
-        
+
         default {
             $type->{'type'}          = 'other';
             $type->{'printer_ready'} = 0;

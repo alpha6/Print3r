@@ -63,7 +63,7 @@ sub connect ( $class, $device_port, $port_speed, $command_callback ) {
                     my ( undef, $line ) = @_;
                     return 1 if ( $line eq '' );    #Skip empty lines
 
-                    $log->debug( sprintf( "Source line [%s]", $line ) );
+                    $log->debug( sprintf( 'Source line [%s]', $line ) );
                     my $parsed_reply = $parser->parse_line($line);
 
                     $log->debug( 'Parsed reply: ' . Dumper($parsed_reply) );
@@ -74,19 +74,19 @@ sub connect ( $class, $device_port, $port_speed, $command_callback ) {
                             $self->{'commands_ok_recv'} )
                         {
                             $log->error(
-                                "Received more ok replies than commands sent!");
+                                'Received more ok replies than commands sent!');
                             $log->error(
                                 sprintf(
-                                    "sent [%s] ok [%s]",
+                                    'sent [%s] ok [%s]',
                                     $self->{'commands_sent'},
                                     $self->{'commands_ok_recv'}
                                 )
                             );
                             $self->{'commands_ok_recv'} =
-                              $self->{'commands_sent'};
+                                $self->{'commands_sent'};
                             # return 1;
 
-                          #croak "Received more ok replies than commands sent!";
+                            #croak "Received more ok replies than commands sent!";
                         }
                         $self->{'ready'} = 1;
                         $self->_send_command();
@@ -110,14 +110,14 @@ sub _send_command {
         ++$self->{'commands_sent'};
         my $command = shift @{ $self->{'commands_queue'} };
         $self->{'printer_handle'}
-          ->push_write( sprintf( "%s\015\012", $command ) );
+            ->push_write( sprintf( "%s\015\012", $command ) );
         $self->{'ready'} = 0;
         $log->debug(
             sprintf( 'Sent [%s]. Status [%s]', $command, $self->{'ready'} ) );
         return 1;
     }
     elsif ( $#{ $self->{'commands_queue'} } < 0 ) {
-        $log->debug("Queue is empty!");
+        $log->debug('Queue is empty!');
         return -1;
     }
     else {
@@ -144,13 +144,13 @@ sub write {
         return 1;
 
     }
-    
+
     $log->debug(
         sprintf( 'Queue size more than limit',
             $#{ $self->{'commands_queue'} } )
     );
     return 0;
-    
+
 }
 
 sub init_printer {

@@ -129,7 +129,7 @@ sub process_command {
             $log->debug('rewind done');
 
             if ( !$reader->has_next ) {
-                croak "No lines to print is available!";
+                croak 'Last line has reached at print start!';
             }
 
             $log->debug('has next');

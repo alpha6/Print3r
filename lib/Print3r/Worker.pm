@@ -81,7 +81,7 @@ sub connect ( $class, $device_port, $port_speed, $command_callback ) {
     bless $self, $class;
 
     #Enable commands numeration to prevent "ok" reaction on a trash in the port.
-    $self->restart_line_counterres();
+    $self->restart_line_counter();
 
     return $self;
 }
@@ -146,8 +146,8 @@ sub write {
 
 sub restart_line_counter($self) {
     $line_number = 0;
-    $self->{commands_sent} == 1;
-    $self->{'commands_ok_recv'} == 0;
+    $self->{commands_sent} = 1;
+    $self->{'commands_ok_recv'} = 0;
 
     $self->{'printer_handle'}->push_write('N0 M110 N0*125'.$line_separator);
 }

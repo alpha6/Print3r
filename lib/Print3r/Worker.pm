@@ -64,29 +64,9 @@ sub connect ( $class, $device_port, $port_speed, $command_callback ) {
                     $log->debug( sprintf( 'Recv [%s]', $line ) );
                     my $parsed_reply = $parser->parse_line($line);
 
-#                    $log->debug( 'Parsed reply: ' . Dumper($parsed_reply) );
-
                     if ( $parsed_reply->{'printer_ready'} ) {
                         $self->{'commands_ok_recv'}++;
                         $log->debug(sprintf('[%s] Ok received', $self->{'commands_ok_recv'}));
-#                        if ( $self->{'commands_sent'} <
-#                            $self->{'commands_ok_recv'} )
-#                        {
-#                            $log->error(
-#                                'Received more ok replies than commands sent!');
-#                            $log->error(
-#                                sprintf(
-#                                    'sent [%s] ok [%s]',
-#                                    $self->{'commands_sent'},
-#                                    $self->{'commands_ok_recv'}
-#                                )
-#                            );
-##                            $self->{'commands_ok_recv'} =
-##                                $self->{'commands_sent'};
-#                            # return 1;
-#
-#                            #croak "Received more ok replies than commands sent!";
-#                        }
                         $self->{'ready'} = 1;
                         $self->_send_command();
                     }

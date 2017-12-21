@@ -311,7 +311,7 @@ sub connect_to_printer {
     );
 
     #Start communication with the printer
-    $worker->write('M105');
+#    $worker->write('M105');
 
     return;
 }
@@ -386,7 +386,7 @@ my $commands = Print3r::Commands->new(
             process_command( { type => 'stop' } );
         },
         status => sub {
-            $worker->write('M105');
+#            $worker->write('M105');
 
         }
     }
@@ -400,7 +400,7 @@ my $test_timer = AnyEvent->timer(
 
         # say sprintf("Alive %s", time());
         if ( defined $worker ) {
-            $worker->write('M105');
+#            $worker->write('M105');
         }
     }
 );

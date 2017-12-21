@@ -29,7 +29,7 @@ my $log    = Print3r::Logger->get_logger(
 );
 
 sub connect ( $class, $device_port, $port_speed, $command_callback ) {
-    $log->debug( 'connect: ' . Dumper( \@_ ) );
+#    $log->debug( 'connect: ' . Dumper( \@_ ) );
 
     my $self = { ready => -1, };
 
@@ -64,7 +64,7 @@ sub connect ( $class, $device_port, $port_speed, $command_callback ) {
                     return 1 if ( $line eq '' );    #Skip empty lines
 
                     $log->debug( sprintf( 'Source line [%s]', $line ) );
-                    my $parsed_reply = $parser->parse_line($line);
+                    my $parsed_reply = $parser->parse_line($line) if ($line ne "");
 
                     $log->debug( 'Parsed reply: ' . Dumper($parsed_reply) );
 
@@ -82,8 +82,8 @@ sub connect ( $class, $device_port, $port_speed, $command_callback ) {
                                     $self->{'commands_ok_recv'}
                                 )
                             );
-                            $self->{'commands_ok_recv'} =
-                                $self->{'commands_sent'};
+#                            $self->{'commands_ok_recv'} =
+#                                $self->{'commands_sent'};
                             # return 1;
 
                             #croak "Received more ok replies than commands sent!";
@@ -133,11 +133,6 @@ sub write {
     my $command = shift;
     chomp $command;
 
-    if ( $command !~ m/^[G|M|T].*/ ) {
-        $log->debug(sprintf('not a gcode [%s]', $command));
-        return 1;
-    }
-
     if ( $#{ $self->{'commands_queue'} } < $queue_size ) {
         push @{ $self->{'commands_queue'} }, $command;
         return $self->_send_command() if ( $self->{'ready'} );
@@ -157,8 +152,8 @@ sub init_printer {
     my $self = shift;
     $log->debug('Init printer');
     if ( $self->{'ready'} < 0 ) {
-        ++$self->{'commands_sent'};
-        $self->{'printer_handle'}->push_write("M105\015\012");
+#        ++$self->{'commands_sent'};
+#        $self->{'printer_handle'}->push_write("M105\015\012");
         return 1;
     }
     return 0;

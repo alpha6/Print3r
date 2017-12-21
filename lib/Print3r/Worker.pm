@@ -100,6 +100,9 @@ sub connect ( $class, $device_port, $port_speed, $command_callback ) {
         },
     );
 
+    #Enable commands numeration to prevent "ok" reaction on a trash in the port
+    $self->{'printer_handle'}->push_write("M110 N0\015\012");
+
     bless $self, $class;
     return $self;
 }
@@ -109,7 +112,8 @@ sub _send_command {
 
     if ( $#{ $self->{'commands_queue'} } >= 0 && $self->{'ready'} ) {
         ++$self->{'commands_sent'};
-        my $command = shift @{ $self->{'commands_queue'} };
+        my $command = $self->_buid_command(shift @{ $self->{'commands_queue'} });
+
         $self->{'printer_handle'}
             ->push_write( sprintf( "%s\015\012", $command ) );
         $self->{'ready'} = 0;
@@ -126,6 +130,16 @@ sub _send_command {
             sprintf( 'Printer is not ready. Status [%s]', $self->{'ready'} ) );
         return 0;
     }
+}
+
+sub _buid_command($self, $line) {
+    my $command = sprintf("N%s %s", $self->{'commands_sent'}, $line);
+
+    #Calculating XOR checksum. http://reprap.org/wiki/G-code#.2A:_Checksum
+    my $cs;
+    $cs ^= $_ for unpack  'C*', $command;
+
+    return sprintf("%s*%d", $command, $cs);
 
 }
 

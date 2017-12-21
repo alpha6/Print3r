@@ -63,13 +63,14 @@ sub connect ( $class, $device_port, $port_speed, $command_callback ) {
                     my ( undef, $line ) = @_;
                     return 1 if ( $line eq '' );    #Skip empty lines
 
-                    $log->debug( sprintf( 'Source line [%s]', $line ) );
+                    $log->debug( sprintf( 'Recv [%s]', $line ) );
                     my $parsed_reply = $parser->parse_line($line) if ($line ne "");
 
-                    $log->debug( 'Parsed reply: ' . Dumper($parsed_reply) );
+#                    $log->debug( 'Parsed reply: ' . Dumper($parsed_reply) );
 
                     if ( $parsed_reply->{'printer_ready'} ) {
                         $self->{'commands_ok_recv'}++;
+                        $lof->debug(sprintf("[%s] Ok received", $self->{'commands_ok_recv'}));
                         if ( $self->{'commands_sent'} <=
                             $self->{'commands_ok_recv'} )
                         {
@@ -113,7 +114,7 @@ sub _send_command {
             ->push_write( sprintf( "%s\015\012", $command ) );
         $self->{'ready'} = 0;
         $log->debug(
-            sprintf( 'Sent [%s]. Status [%s]', $command, $self->{'ready'} ) );
+            sprintf( 'Sent [%s] [%s].', $self->{'commands_sent'}, $command, $self->{'ready'} ) );
         return 1;
     }
     elsif ( $#{ $self->{'commands_queue'} } < 0 ) {

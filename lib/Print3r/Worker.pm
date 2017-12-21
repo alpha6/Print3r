@@ -74,7 +74,7 @@ sub connect ( $class, $device_port, $port_speed, $command_callback ) {
                     if ( $parsed_reply->{'printer_ready'} ) {
                         $self->{'commands_ok_recv'}++;
                         $log->debug(sprintf("[%s] Ok received", $self->{'commands_ok_recv'}));
-                        if ( $self->{'commands_sent'} <=
+                        if ( $self->{'commands_sent'} <
                             $self->{'commands_ok_recv'} )
                         {
                             $log->error(

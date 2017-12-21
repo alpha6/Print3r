@@ -98,7 +98,7 @@ sub _send_command {
             ->push_write( sprintf( '%s%s', $command, $line_separator ) );
         $self->{'ready'} = 0;
         $log->debug(
-            sprintf( 'Sent [%s] [%s].', $self->{'commands_sent'}, $command, $self->{'ready'} ) );
+            sprintf( 'Sent [%s] [%s].', $self->{'commands_sent'}, $command ) );
         return 1;
     }
     elsif ( $#{ $self->{'commands_queue'} } < 0 ) {

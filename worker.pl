@@ -277,7 +277,6 @@ sub connect_to_printer {
     try {
         $worker = Print3r::Worker->connect( $printer_port, $port_speed,
             \&process_command );
-        $worker->init_printer();
     }
     catch {
         say STDERR "Error: $_";

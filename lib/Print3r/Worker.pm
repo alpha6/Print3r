@@ -39,15 +39,10 @@ sub connect ( $class, $device_port, $port_speed, $command_callback ) {
     $log->debug("Connecting.. [$device_port] [$port_speed]");
     my $port = Print3r::Worker::Port->new( $device_port, $port_speed );
 
-    # say STDERR "Port: ".ref $port;
-
     $self->{'printer_port'}   = $port;
     $self->{'commands_queue'} = [];
 
-    $self->{'commands_sent'}    = 0;
-    $self->{'commands_ok_recv'} = -1;
-
-    local $/ = "\r\n";
+    local $/ = $line_separator;
 
     $self->{'printer_handle'} = AnyEvent::Handle->new(
         fh       => $port,
@@ -64,34 +59,34 @@ sub connect ( $class, $device_port, $port_speed, $command_callback ) {
             $p_hdl->push_read(
                 line => sub {
                     my ( undef, $line ) = @_;
-                    return 1 if ( $line eq '' );    #Skip empty lines
+                    return 1 if ( $line eq q{} );    #Skip empty lines
 
                     $log->debug( sprintf( 'Recv [%s]', $line ) );
-                    my $parsed_reply = $parser->parse_line($line) if ($line ne "");
+                    my $parsed_reply = $parser->parse_line($line);
 
 #                    $log->debug( 'Parsed reply: ' . Dumper($parsed_reply) );
 
                     if ( $parsed_reply->{'printer_ready'} ) {
                         $self->{'commands_ok_recv'}++;
-                        $log->debug(sprintf("[%s] Ok received", $self->{'commands_ok_recv'}));
-                        if ( $self->{'commands_sent'} <
-                            $self->{'commands_ok_recv'} )
-                        {
-                            $log->error(
-                                'Received more ok replies than commands sent!');
-                            $log->error(
-                                sprintf(
-                                    'sent [%s] ok [%s]',
-                                    $self->{'commands_sent'},
-                                    $self->{'commands_ok_recv'}
-                                )
-                            );
-#                            $self->{'commands_ok_recv'} =
-#                                $self->{'commands_sent'};
-                            # return 1;
-
-                            #croak "Received more ok replies than commands sent!";
-                        }
+                        $log->debug(sprintf('[%s] Ok received', $self->{'commands_ok_recv'}));
+#                        if ( $self->{'commands_sent'} <
+#                            $self->{'commands_ok_recv'} )
+#                        {
+#                            $log->error(
+#                                'Received more ok replies than commands sent!');
+#                            $log->error(
+#                                sprintf(
+#                                    'sent [%s] ok [%s]',
+#                                    $self->{'commands_sent'},
+#                                    $self->{'commands_ok_recv'}
+#                                )
+#                            );
+##                            $self->{'commands_ok_recv'} =
+##                                $self->{'commands_sent'};
+#                            # return 1;
+#
+#                            #croak "Received more ok replies than commands sent!";
+#                        }
                         $self->{'ready'} = 1;
                         $self->_send_command();
                     }
@@ -103,13 +98,11 @@ sub connect ( $class, $device_port, $port_speed, $command_callback ) {
         },
     );
 
-    #Enable commands numeration to prevent "ok" reaction on a trash in the port
-    $self->{'printer_handle'}->push_write("M110 N0".$line_separator);
-    $self->{'printer_handle'}->push_write("N0 M110 N0*125".$line_separator);
-    ++$self->{'commands_sent'};
-    ++$self->{'commands_sent'};
-
     bless $self, $class;
+
+    #Enable commands numeration to prevent "ok" reaction on a trash in the port.
+    $self->restart_line_counterres();
+
     return $self;
 }
 
@@ -122,7 +115,7 @@ sub _send_command {
         my $command = $self->_buid_command(shift @{ $self->{'commands_queue'} });
 
         $self->{'printer_handle'}
-            ->push_write( sprintf( "%s%s", $command, $line_separator ) );
+            ->push_write( sprintf( '%s%s', $command, $line_separator ) );
         $self->{'ready'} = 0;
         $log->debug(
             sprintf( 'Sent [%s] [%s].', $self->{'commands_sent'}, $command, $self->{'ready'} ) );
@@ -140,14 +133,14 @@ sub _send_command {
 }
 
 sub _buid_command($self, $line) {
-    my $command = sprintf("N%s %s", $line_number, $line);
+    my $command = sprintf('N%s %s', $line_number, $line);
 
-    #Calculating XOR checksum. http://reprap.org/wiki/G-code#.2A:_Checksum
+    #Calculating checksum. http://reprap.org/wiki/G-code#.2A:_Checksum
     my $cs;
     $cs ^= $_ for unpack  'C*', $command;
     $cs &= 0xff;
 
-    return sprintf("%s*%d", $command, $cs);
+    return sprintf('%s*%d', $command, $cs);
 
 }
 
@@ -171,15 +164,12 @@ sub write {
 
 }
 
-sub init_printer {
-    my $self = shift;
-    $log->debug('Init printer');
-    if ( $self->{'ready'} < 0 ) {
-#        ++$self->{'commands_sent'};
-#        $self->{'printer_handle'}->push_write("M105\015\012");
-        return 1;
-    }
-    return 0;
+sub restart_line_counter($self) {
+    $line_number = 0;
+    $self->{commands_sent} == 1;
+    $self->{'commands_ok_recv'} == 0;
+
+    $self->{'printer_handle'}->push_write('N0 M110 N0*125'.$line_separator);
 }
 
 1;

@@ -7,7 +7,7 @@ no if $] >= 5.018, warnings => 'experimental::smartmatch';
 
 use feature qw(signatures);
 no warnings qw(experimental::signatures);
-our $VERSION = version->declare('v0.0.1');
+our $VERSION = version->declare('v0.0.2');
 
 sub new {
     my $class = shift;
@@ -26,7 +26,7 @@ sub parse_line ($self, $line) {
             $type->{'printer_ready'} = 1;
             $type->{'line'}          = $line;
         }
-        when (/\b(?:halt|kill|stop)\b/i) {
+        when (/\b(?:halt|kill|stop|error)\b/i) {
             $type->{'type'}          = 'error';
             $type->{'printer_ready'} = 0;
             $type->{'line'}          = $line;

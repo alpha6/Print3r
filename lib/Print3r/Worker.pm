@@ -28,6 +28,9 @@ my $log    = Print3r::Logger->get_logger(
     level  => 'debug'
 );
 
+my $line_number = 0;
+my $line_separator = "\012";
+
 sub connect ( $class, $device_port, $port_speed, $command_callback ) {
 #    $log->debug( 'connect: ' . Dumper( \@_ ) );
 
@@ -101,7 +104,10 @@ sub connect ( $class, $device_port, $port_speed, $command_callback ) {
     );
 
     #Enable commands numeration to prevent "ok" reaction on a trash in the port
-    $self->{'printer_handle'}->push_write("M110 N0\015\012");
+    $self->{'printer_handle'}->push_write("M110 N0".$line_separator);
+    $self->{'printer_handle'}->push_write("N0 M110 N0*125".$line_separator);
+    ++$self->{'commands_sent'};
+    ++$self->{'commands_sent'};
 
     bless $self, $class;
     return $self;
@@ -112,10 +118,11 @@ sub _send_command {
 
     if ( $#{ $self->{'commands_queue'} } >= 0 && $self->{'ready'} ) {
         ++$self->{'commands_sent'};
+        ++$line_number;
         my $command = $self->_buid_command(shift @{ $self->{'commands_queue'} });
 
         $self->{'printer_handle'}
-            ->push_write( sprintf( "%s\015\012", $command ) );
+            ->push_write( sprintf( "%s%s", $command, $line_separator ) );
         $self->{'ready'} = 0;
         $log->debug(
             sprintf( 'Sent [%s] [%s].', $self->{'commands_sent'}, $command, $self->{'ready'} ) );
@@ -133,11 +140,12 @@ sub _send_command {
 }
 
 sub _buid_command($self, $line) {
-    my $command = sprintf("N%s %s", $self->{'commands_sent'}, $line);
+    my $command = sprintf("N%s %s", $line_number, $line);
 
     #Calculating XOR checksum. http://reprap.org/wiki/G-code#.2A:_Checksum
     my $cs;
     $cs ^= $_ for unpack  'C*', $command;
+    $cs &= 0xff;
 
     return sprintf("%s*%d", $command, $cs);
 

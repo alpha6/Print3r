@@ -18,7 +18,7 @@ subtest 'creates correct object' => sub {
 my $worker = Print3r::Worker::Commands::PrinterReplyParser->new;
 
 subtest 'check_version' => sub {
-    is($worker->VERSION, 'v0.0.1', 'check that the test is for correct module version');
+    is($worker->VERSION, 'v0.0.2', 'check that the test is for correct module version');
 };
 
 subtest 'parse temp line' => sub {
@@ -104,7 +104,9 @@ subtest 'error_line' => sub {
     my @lines = (
         'Limit switch +X was hit - reset or M999 required',
         'Temperature took too long to be reached on B, HALT asserted, TURN POWER OFF IMMEDIATELY - reset or M999 required',
-        'Errort: Printer halted. kill() called !!',
+        'Error: Printer halted. kill() called !!',
+        'Error:No Checksum with line number, Last Line: 7',
+        'Error:Line Number is not Last Line Number+1, Last Line: 7',
         'Printer stopped due to errors. Fix the error and use M999 to restart. (Temperature is reset. Set it after restarting)',
         'STOP called because of BLTouch error - restart with M999',
         'STOP called because of unhomed error - restart with M999',
@@ -128,3 +130,6 @@ subtest 'error_line' => sub {
 };
 
 done_testing;
+
+__END__
+

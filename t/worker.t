@@ -26,7 +26,7 @@ subtest 'creates correct object' => sub {
 };
 
 subtest 'check_version' => sub {
-    is( $worker->VERSION, 'v0.0.6',
+    is( $worker->VERSION, 'v0.0.7',
         'check that the test is for suitable module version' );
 };
 
@@ -34,8 +34,6 @@ subtest 'init' => sub {
     $reply = undef;
     
     my $cv = AE::cv;
-
-    my $res = $worker->init_printer();
 
     my $timer = AnyEvent->timer(
         after => 1,

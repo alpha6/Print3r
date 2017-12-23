@@ -7,7 +7,7 @@ no if $] >= 5.018, warnings => 'experimental::smartmatch';
 use feature qw(signatures);
 no warnings qw(experimental::signatures);
 
-our $VERSION = version->declare('v0.0.6');
+our $VERSION = version->declare('v0.0.7');
 
 use JSON;
 use AnyEvent::Handle;
@@ -145,11 +145,11 @@ sub write {
 }
 
 sub restart_line_counter($self) {
-    $line_number = 0;
     $self->{commands_sent} = 1;
     $self->{'commands_ok_recv'} = 0;
 
-    $self->{'printer_handle'}->push_write('N0 M110 N0*125'.$line_separator);
+    $self->{'printer_handle'}->push_write(sprintf('%s%s', $self->_buid_command('M110 N0'), $line_separator));
+    $line_number = 0; #Set 0 
 }
 
 1;

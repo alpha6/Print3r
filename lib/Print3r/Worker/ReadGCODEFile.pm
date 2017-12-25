@@ -36,8 +36,13 @@ sub next($self) {
     $self->{'current'}++;
 
     my $line =  $self->{'content'}[$self->{'current'}];
+     
     $line = $self->next() if ($line !~ m/^[G|M|T].*/); #return only GCODE lines
-    ($line, undef) = split /\s*;/, $line, 2;
+    
+    #a bit clean line
+    $line =~ s/\r//g; 
+    ($line, undef) = split /\s*;/, $line, 2; #removing comment
+
     return $line;
 }
 

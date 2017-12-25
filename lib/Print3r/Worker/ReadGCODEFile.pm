@@ -37,7 +37,14 @@ sub next($self) {
 
     my $line =  $self->{'content'}[$self->{'current'}];
      
-    $line = $self->next() if ($line !~ m/^[G|M|T].*/); #return only GCODE lines
+    #return only GCODE lines
+    if ($line !~ m/^[G|M|T].*/) {
+        if ($self->has_next)
+            $line = $self->next();
+        } else {
+            return;
+        }
+    } 
     
     #a bit clean line
     $line =~ s/\r//g; 

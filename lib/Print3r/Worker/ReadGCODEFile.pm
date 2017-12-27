@@ -39,7 +39,7 @@ sub next($self) {
      
     #return only GCODE lines
     if ($line !~ m/^[G|M|T].*/) {
-        if ($self->has_next)
+        if ($self->has_next) {
             $line = $self->next();
         } else {
             return;

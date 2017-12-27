@@ -15,6 +15,7 @@ use Tie::File;
 
 use Try::Tiny;
 use Carp;
+use Cwd 'abs_path';
 
 use Getopt::Long;
 
@@ -323,10 +324,14 @@ my $commands = Print3r::Commands->new(
             $log->info(
                 sprintf( 'Starting print. File: %s', $params->{'file'} ) );
 
-            open( $printing_file, '<', $params->{'file'} ) or die $!;
+            my $abs_file_path = abs_path($params->{'file'});
+
+            $log->debug(sprintf 'ABS File path [%s]', $abs_file_path);
+
+            open( $printing_file, '<', $abs_file_path ) or die $!;
             $reader = Print3r::Worker::ReadGCODEFile->new($printing_file);
 
-            $print_file_path = $params->{'file'};
+            $print_file_path = $abs_file_path;
 
             process_command( { type => 'start_printing', start_line => 0 } );
         },

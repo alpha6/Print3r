@@ -11,15 +11,17 @@ use AnyEvent::Handle;
 use AnyEvent::Socket;
 
 use File::Basename;
-use Time::Moment;
+use Tie::File;
 
 use Try::Tiny;
+use Carp;
 
 use Getopt::Long;
 
 use Print3r::Commands;
 use Print3r::Worker;
 use Print3r::Logger;
+use Print3r::Worker::ReadGCODEFile;
 
 use Data::Dumper;
 
@@ -38,6 +40,7 @@ my $handle;
 my $printer_handle = undef;
 my $printing_file  = undef;
 my $port_handle    = undef;
+my $reader         = undef;
 my %timers;
 
 my $print_file_path = undef;
@@ -58,28 +61,6 @@ GetOptions(
 
 my $worker;
 
-sub get_line {
-    my $start_line = shift || 0;
-    $log->debug("Start line is [$start_line]");
-
-    while ( my $line = <$printing_file> ) {
-        $line_number++;
-
-        if ( $line_number < $start_line ) {
-            next;
-        }
-
-        if ( $line =~ m/^[G|M|T].*/ ) {
-            chomp $line;
-            $plog->trace( sprintf( 'read [%s]', $line ) );
-            $line_number++;
-            return $line;
-        }
-    }
-
-    return $line_number;
-}
-
 sub get_printing_logger {
     my $filename = fileparse( $print_file_path, qr/\.[^.]*/ );
 
@@ -87,10 +68,10 @@ sub get_printing_logger {
 
     my $log_file = sprintf( '%s_%s.log', $filename, $date );
     my $logger = Print3r::Logger->get_logger(
-        'file',
+        'stderr',
         file   => $log_file,
         synced => 1,
-        level  => 'info'
+        level  => 'debug'
     );
     $logger->set_level('debug');
 
@@ -113,6 +94,7 @@ sub set_heartbeat {
 
 sub process_command {
     my $command = shift;
+    state $prev_command_accepted = 1;
 
     # Check that the printer is ready for new commands and set flag
     if ( exists( $command->{'printer_ready'} ) ) {
@@ -132,26 +114,41 @@ sub process_command {
     }
 
     if ( $command->{'type'} eq 'start_printing' ) {
+        $log->info('Starting print');
         try {
 
             $line_number = 0;
             $plog        = get_printing_logger();
-            if ( my $next_command = get_line( $command->{'start_line'} || 0 ) )
-            {
-                $plog->info( 'sent: ' . $next_command );
-                $worker->write("$next_command\n");
+
+            $log->debug( sprintf( 'stat [%s]', $prev_command_accepted ) );
+
+            #Rewind to line when recovering print
+            if ( $command->{'start_line'} > 0 ) {
+                $reader->rewind( $command->{'start_line'} );
+            }
+            $log->debug('rewind done');
+
+            if ( !$reader->has_next ) {
+                croak 'Last line has reached at print start!';
+            }
+
+            $log->debug('has next');
+            my $gcode_line;
+
+            if ( $prev_command_accepted > 0 ) {
+                $gcode_line = $reader->next();
             }
             else {
-                $handle->push_write(
-                    json => {
-                        command => 'error',
-                        message => 'No file to print is available'
-                    }
-                );
+                $gcode_line = $reader->current_line();
             }
+
+            $prev_command_accepted = $worker->write($gcode_line);
+            $plog->info( 'sent: ' . $gcode_line );
+            $log->info( 'sent: ' . $gcode_line );
 
         }
         catch {
+            $log->error("Printing error: $_");
             $handle->push_write( json =>
                   { command => 'error', message => "Printing error: $_" } );
         };
@@ -159,32 +156,51 @@ sub process_command {
     }
     elsif ( !$is_print_paused && $command->{'printer_ready'} ) {
         if ( defined($printing_file) && $is_printer_ready ) {
-            my $next_command = get_line();
 
             try {
-                #The function get_line return number only if print ended
-                if ( $next_command !~ /^\d+$/ ) {
-                    $plog->info( 'sent: ' . $next_command );
-                    $worker->write("$next_command\n");
+
+                my $gcode_line;
+
+                if ( $prev_command_accepted > 0 ) {
+                    if ( $reader->has_next ) {
+                        $gcode_line = $reader->next();
+                    }
+                    else {
+                        $handle->push_write(
+                            json => {
+                                command => 'message',
+                                line =>
+                                  sprintf(
+                                    'Printing has ended. Printed [%d] lines.',
+                                    $reader->current ),
+                            }
+                        );
+                        undef $printing_file;
+                        return;
+                    }
+
                 }
                 else {
-                    $handle->push_write(
-                        json => {
-                            command => 'message',
-                            line =>
-                              sprintf(
-                                'Printing has ended. Printed [%d] lines.',
-                                $next_command ),
-                        }
-                    );
-                    undef $printing_file;
+                    $gcode_line = $reader->current_line();
                 }
+
+                $prev_command_accepted = $worker->write($gcode_line);
+                $plog->info( 'sent: ' . $gcode_line );
+                $log->info( 'sent: ' . $gcode_line );
+
             }
             catch {
                 $plog->error( sprintf( 'Printing error: %s', $_ ) );
                 $is_print_paused = 1;
-                $handle->push_write( json =>
-                      { command => 'error', message => "Printing error: $_" } );
+                $handle->push_write(
+                    json => {
+                        command => 'error',
+                        message => sprintf(
+                            'Printing error: %s in line %s',
+                            $_, $reader->current
+                        )
+                    }
+                );
             };
 
         }
@@ -228,7 +244,7 @@ sub process_command {
         );
 
         # Send command to resume printing
-        $worker->write("M105\n");
+        $worker->write('M105');
     }
     elsif ( $command->{'type'} eq 'stop' ) {
         $log->info('Print stopped.');
@@ -294,7 +310,7 @@ sub connect_to_printer {
     );
 
     #Start communication with the printer
-    $worker->write("M105\n");
+#    $worker->write('M105');
 
     return;
 }
@@ -306,17 +322,19 @@ my $commands = Print3r::Commands->new(
             my $params = shift;
             $log->info(
                 sprintf( 'Starting print. File: %s', $params->{'file'} ) );
+
             open( $printing_file, '<', $params->{'file'} ) or die $!;
+            $reader = Print3r::Worker::ReadGCODEFile->new($printing_file);
 
             $print_file_path = $params->{'file'};
 
-            process_command( { type => 'start_printing' } );
+            process_command( { type => 'start_printing', start_line => 0 } );
         },
         send => sub {
             my $self   = shift;
             my $params = shift;
             $log->info( sprintf( 'External G-Code: %s', Dumper($params) ) );
-            $worker->write( sprintf( "%s\n", $params->{'value'} ) );
+            $worker->write( $params->{'value'} );
         },
         disconnect => sub {
             $log->info('Disconnecting...');
@@ -367,7 +385,7 @@ my $commands = Print3r::Commands->new(
             process_command( { type => 'stop' } );
         },
         status => sub {
-            $worker->write("M105\n");
+#            $worker->write('M105');
 
         }
     }
@@ -381,10 +399,7 @@ my $test_timer = AnyEvent->timer(
 
         # say sprintf("Alive %s", time());
         if ( defined $worker ) {
-            if ( !$in_command_flag ) {
-
-                #$worker->write("M105\n");
-            }
+#            $worker->write('M105');
         }
     }
 );

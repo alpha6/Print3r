@@ -273,11 +273,11 @@ sub process_command {
                 $child_watcher = AnyEvent->child(
                     pid => $pid,
                     cb  => sub {
-                        my ( $pid, $status ) = @_;
+                        my ( $child_pid, $status ) = @_;
                         $log->info(
                             sprintf(
                                 'pid %s exited with status [%s]',
-                                $pid, $status
+                                $child_pid, $status
                             )
                         );
                         undef $child_watcher;

@@ -150,7 +150,9 @@ sub restart_line_counter($self) {
     $self->{commands_sent} = 1;
     $self->{'commands_ok_recv'} = 0;
 
-    $self->{'printer_handle'}->push_write(sprintf('%s%s', $self->_buid_command('M110 N0'), $line_separator));
+    my $cmd = sprintf('%s%s', $self->_buid_command('M110 N0'), $line_separator);
+    $log->debug("reset numbering: ".$cmd);
+    $self->{'printer_handle'}->push_write($cmd);
     $line_number = 0; #Set 0 
 }
 

@@ -208,6 +208,15 @@ sub process_command {
     }
     elsif ( $command->{'type'} eq 'error' ) {
 
+        # Reset lines counter to zero if printer report that first line number is zero, otherwise throw error
+        # Zero in that error usually means that the counter was reseted by printer
+        my $last_line = _check_line_numbering($command->{'line'});
+        if ($last_line == 0) {
+            $log-warn("M110 tells that the next line must be N0");
+            $worker->restart_line_counter();
+            return 1;
+        }
+
         # If got error: pause print and send error message to master.
         $is_print_paused = 1;
 
@@ -473,4 +482,18 @@ sub shutdown_worker {
 
     $handle->destroy();
     exit $status;
+}
+
+sub _check_line_numbering {
+    my $line = shift;
+    for ($line) {
+        when (/^Error:Line Number is not Last Line Number+1, Last Line: \d+/) {
+            my ($last_line) = $line =~ m/^Error:Line Number is not Last Line Number+1, Last Line: (\d+)/;
+            return $last_line;
+        }
+        when (/^rs N\d+/) {
+            my ($last_line) = $line =~ m/^rs N(\d+)/;
+            return $last_line;
+        }
+    }
 }
